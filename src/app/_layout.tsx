@@ -1,9 +1,16 @@
-import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
 import '@/global.css';
-import { Text } from 'react-native';
+import React, { useState } from 'react';
+import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
 
-export default function RootLayout({children}: {children: React.ReactNode}) {
-  return <GluestackUIProvider>
-    {children}
-  </GluestackUIProvider>
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+export default function App({children}: {children: React.ReactNode}) {
+  return (
+    <SafeAreaView className="flex-1 justify-center items-center">
+      <GluestackUIProvider mode='system'>
+        {children}
+      </GluestackUIProvider>
+    </SafeAreaView>
+  );
 }
+
