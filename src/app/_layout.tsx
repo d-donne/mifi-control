@@ -1,16 +1,15 @@
-import '@/global.css';
-import React, { useState } from 'react';
-import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
+import "@/global.css";
+import React, { useState } from "react";
+import { GluestackUIProvider } from "@/components/ui/gluestack-ui-provider";
 
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Stack } from "expo-router";
+import { Text } from "@/components/ui/text";
 
-export default function App({children}: {children: React.ReactNode}) {
+export default function App() {
   return (
-    <SafeAreaView className="flex-1 justify-center items-center">
-      <GluestackUIProvider mode='system'>
-        {children}
-      </GluestackUIProvider>
-    </SafeAreaView>
+    <GluestackUIProvider mode="system">
+        <Stack screenOptions={{ headerShown: false, statusBarStyle: "dark" }} />
+    </GluestackUIProvider>
   );
 }
-

@@ -7,4 +7,5 @@ module.exports = withUniwindConfig(config, {
   cssEntryFile: "./global.css",
   dtsFile: "./uniwind-types.d.ts",
   extraThemes: ["dark"],
+  // themes: ["light", "dark"],
 });
