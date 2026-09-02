@@ -1,10 +1,12 @@
+import { Box } from "@/components/ui/box";
+import { Button } from "@/components/ui/button";
 import { Text, View, StyleSheet } from "react-native";
 
 export default function Index() {
   return (
-    <View style={styles.container}>
-      <Text>Edit src/app/index.tsx to edit this screen.</Text>
-    </View>
+    <Box className="bg-black" style={styles.container}>
+      <Button>skfjsl</Button>
+    </Box>
   );
 }
 
