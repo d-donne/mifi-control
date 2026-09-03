@@ -39,7 +39,7 @@ export default function PulsingDot({
     <Animated.View
       style={[{ width: 8, height: 8, borderRadius: 4 }, animatedStyle]}
     >
-      <Box className={`w-2 h-2 rounded-full ${colorClass}`} />
+      <Box className={`size-2.5 rounded-full ${colorClass}`} />
     </Animated.View>
   );
 }
