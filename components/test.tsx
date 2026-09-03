@@ -16,13 +16,7 @@ export default function Test() {
 
   return (
     <Box>
-      <Text>
-        {isLoading
-          ? "Loading..."
-          : error
-            ? `Error: ${error}`
-            : JSON.stringify(data, null, 2)}
-      </Text>
+      <Text>{isLoading ? "Loading..." : error && `Error: ${error}`}</Text>
       <VStack>
         <Text>Additional info here</Text>
         {data && (

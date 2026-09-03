@@ -5,19 +5,23 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import { BASEURL, PASS, USERNAME } from "../api/constants";
 import { HiLinkProvider } from "../hooks/HiLinkProvider";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { useUniwind } from "uniwind";
+import { StatusBar } from "expo-status-bar";
 
 const queryClinet = new QueryClient();
 
 export default function App() {
   return (
     <QueryClientProvider client={queryClinet}>
-      <HiLinkProvider baseUrl={BASEURL} username={USERNAME} password={PASS}>
+      <SafeAreaProvider>
+        <StatusBar animated style="light" />
         <GluestackUIProvider mode="system">
-          <Stack
-            screenOptions={{ headerShown: false, statusBarStyle: "dark" }}
-          />
+          <HiLinkProvider baseUrl={BASEURL} username={USERNAME} password={PASS}>
+            <Stack screenOptions={{ headerShown: false }} />
+          </HiLinkProvider>
         </GluestackUIProvider>
-      </HiLinkProvider>
+      </SafeAreaProvider>
     </QueryClientProvider>
   );
 }
