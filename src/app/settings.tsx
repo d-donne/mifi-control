@@ -115,6 +115,7 @@ export default function Settings() {
                   secureTextEntry
                   autoCapitalize="none"
                   autoCorrect={false}
+                  autoComplete="password"
                   placeholder="••••••••"
                 />
               </Input>
