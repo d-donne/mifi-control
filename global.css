@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import 'uniwind';
+@import "uniwind";
 /* ─── UniWind theme variants ─────────────────────────────────────
    Switched at runtime via Uniwind.setTheme('light' | 'dark' | 'adaptive').
    Variable values match the nativewind config.ts tokens so that the
@@ -27,6 +27,7 @@
     @variant light {
       --primary: 108 92 231;
       --primary-foreground: 255 255 255;
+      --primary-blue: 15 100 255;
       --card: 255 255 255;
       --card-foreground: 51 51 51;
       --secondary: 161 201 242;
@@ -47,7 +48,7 @@
 
       /* Dashboard-specific semantic colors (one-time use per dashboard
          component, but defined here so the colors live with the theme). */
-      --online-dot: 108 92 231;
+      --online-dot: 15 255 15;
       --battery-ring: 15 118 86;
       --battery-ring-track: 226 232 240;
       --data-ring: 29 158 117;
@@ -69,6 +70,7 @@
     @variant dark {
       --primary: 167 139 250;
       --primary-foreground: 15 23 42;
+      --primary-blue: 15 100 255;
       --card: 47 52 54;
       --card-foreground: 229 229 229;
       --secondary: 75 0 130;
@@ -88,7 +90,7 @@
       --accent-foreground: 229 229 229;
 
       /* Dashboard-specific semantic colors (dark variants) */
-      --online-dot: 167 139 250;
+      --online-dot: 24, 237, 24;
       --battery-ring: 52 211 153;
       --battery-ring-track: 68 68 68;
       --data-ring: 52 211 153;
@@ -114,6 +116,7 @@
 @theme inline {
   --color-primary: rgb(var(--primary));
   --color-primary-foreground: rgb(var(--primary-foreground));
+  --color-primary-blue: rgb(var(--primary-blue));
   --color-card: rgb(var(--card));
   --color-card-foreground: rgb(var(--card-foreground));
   --color-secondary: rgb(var(--secondary));
