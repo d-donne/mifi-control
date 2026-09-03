@@ -1,10 +1,10 @@
-// Thin fetch-shaped wrapper around XMLHttpRequest, needed because RN's real
+// Thin fetch-shaped wrapper around XMLHttpRequest, needed because RN's
 // fetch() silently drops the Cookie header (it's a spec-forbidden header
 // name) — confirmed against react-native issue #13452. XHR does not enforce
 // that restriction, so it's the only reliable way to send a manual Cookie
 // header from RN.
 
-interface XhrResponse {
+export interface XhrResponse {
   ok: boolean;
   status: number;
   text: () => Promise<string>;
@@ -32,10 +32,6 @@ export function xhrRequest(
 
     xhr.onload = () => {
       const rawHeaders = xhr.getAllResponseHeaders();
-
-      console.log("=== RAW HEADERS FROM", url, "===");
-      console.log(rawHeaders);
-      console.log("=== END RAW HEADERS ===");
 
       resolve({
         ok: xhr.status >= 200 && xhr.status < 300,
