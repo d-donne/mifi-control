@@ -1,56 +1,57 @@
-# Welcome to your Expo app 👋
+# MiFi Dashboard
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A custom Expo / React Native / TypeScript app to control a Huawei E5576-320 MiFi directly over local Wi-Fi, replacing the official "AI Life" app. The phone talks straight to the device at `http://192.168.8.1` over its local HiLink HTTP API — no backend server in between.
 
-## Get started
+> **Note:** this is a learning project. I work through the problem themselves; contributions are intentionally minimal.
 
-1. Install dependencies
+## Stack
 
-   ```bash
-   npm install
-   ```
+- **Expo SDK 57** + TypeScript, React 19.2, React Native 0.86
+- **Bun** for package management and script running (`bun.lock` present)
+- **Gluestack UI** with the **Uniwind** adapter for styling
+- **Expo Router** for file-based navigation
+- **`fast-xml-parser`** + **`fast-xml-builder`** for the HiLink XML protocol
+- **`expo-crypto`** for SHA256 password hashing
+- **`@tanstack/react-query`** for all data fetching and polling
 
-2. Start the app
+## Project status
 
-   ```bash
-   npx expo start
-   ```
+Currently in early development. The HiLink client (`src/api/main.ts`) can authenticate, manage the session cookie and CSRF token pool, and exposes typed methods for `getStatus`, `getTraffic`, `getDeviceInfo`, `setMobileData`, and `reboot`. UI is a minimal proof-of-concept polling screen.
 
-In the output, you'll find options to open the app in a
+See [`PROJECT.md`](./PROJECT.md) for the full project tracker — current blockers, deferred features, and the ordered next-steps list.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Running
 
 ```bash
-npm run reset-project
+bun install
+bunx expo start
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Then open with the iOS simulator, Android emulator, a development build, or Expo Go as prompted.
 
-### Other setup steps
+## Configuration
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+The MiFi device address and admin credentials are read from `.env`:
 
-## Learn more
+```
+EXPO_PUBLIC_MODEM_URL="http://192.168.8.1"
+EXPO_PUBLIC_USERNAME=admin
+EXPO_PUBLIC_PASS=your-password
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+Only `EXPO_PUBLIC_`-prefixed variables are inlined into the runtime bundle by Expo. The `EXPO_PUBLIC_PASS` prefix is currently unavoidable — once the client is fully proven, credentials should move to `expo-secure-store` and a Settings screen (deferred — see `PROJECT.md`).
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## Layout
 
-## Join the community
+```
+src/
+  api/            HiLink client, types, error handling, XML helpers
+  app/            Expo Router screens (_layout.tsx, index.tsx)
+  hooks/          React context providers
+components/       Reusable UI (including Gluestack primitives under ui/)
+```
 
-Join our community of developers creating universal apps.
+## License
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+See [`LICENSE`](./LICENSE).
+

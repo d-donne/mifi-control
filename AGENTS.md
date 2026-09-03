@@ -1,5 +1,17 @@
 This is an Expo/React Native mobile application. Prioritize mobile-first patterns, performance, and cross-platform compatibility.
 
+## How to work with this project
+
+This is a **learning project** — the owner is working through the problem themselves and only wants code, edits, or commands run on their behalf when explicitly asked. By default:
+
+- **Don't edit files.** Provide explanations, reasoning, and code snippets in chat. The owner will apply changes.
+- **Don't run state-changing commands** (installs, builds, git writes, etc.) without explicit permission.
+- **Read-only inspection is fine** when needed to give an accurate answer (listing files, reading file contents, searching the codebase, reading docs).
+- If the owner asks a question that can be answered from existing code/context, answer it directly — no need to invoke tools.
+- When code snippets are provided in chat, include full file contents and exact code, not partial diffs, so the owner can paste them in cleanly.
+
+Project state, what's been built, what's blocked, and what's next lives in `PROJECT.md` — keep it in sync as the owner makes progress. If asked to update `PROJECT.md`, do so; otherwise treat it as a read-only reference.
+
 ## Expo has changed — do not trust your training data
 
 Expo ships breaking changes every SDK release. APIs you remember are likely renamed, moved, or removed. Before writing any code that touches an Expo, EAS, or React Native API:
@@ -10,15 +22,15 @@ Expo ships breaking changes every SDK release. APIs you remember are likely rena
 
 ## Commands
 
-Use `bunx` instead of `npx` if the project uses bun (`bun.lock` present).
+Use `bunx` instead of `npx` — this project uses bun (`bun.lock` is present).
 
 ```bash
-npx expo install <package>  # ALWAYS use instead of npm/yarn/pnpm/bun add — resolves SDK-compatible versions
-npx expo start              # start the dev server
-npx expo lint               # lint
-npx tsc --noEmit            # typecheck
-npx expo-doctor             # diagnose dependency and config issues
-npx expo install --fix      # fix incompatible package versions
+bunx expo install <package>  # ALWAYS use instead of npm/yarn/pnpm/bun add — resolves SDK-compatible versions
+bunx expo start              # start the dev server
+bunx expo lint               # lint
+bunx tsc --noEmit            # typecheck
+bunx expo-doctor             # diagnose dependency and config issues
+bunx expo install --fix      # fix incompatible package versions
 ```
 
 Run lint and typecheck before declaring any task done.
@@ -31,11 +43,11 @@ Run lint and typecheck before declaring any task done.
 
 ## Building with EAS
 
-Use EAS to build, sign, and submit the app in the cloud (`eas build`, `eas submit`) and to ship over-the-air updates (`eas update`) — no local Xcode or Android Studio required. Run EAS CLI as `bunx eas-cli <command>` in Bun projects, or `npx eas-cli@latest <command>` otherwise; substitute that for bare `eas` in docs examples.
+Use EAS to build, sign, and submit the app in the cloud (`eas build`, `eas submit`) and to ship over-the-air updates (`eas update`) — no local Xcode or Android Studio required. Run EAS CLI as `bunx eas-cli <command>`; substitute that for bare `eas` in docs examples.
 Docs: https://docs.expo.dev/eas/index.md
 
 ## Rules
 
 - If `ios/` and `android/` directories do not exist, they are generated (Continuous Native Generation). Never create or edit them by hand — configure native behavior in `app.json` and config plugins.
-- Expo Go only includes its bundled native modules. After adding a library with native code, the app needs a development build: `npx expo run:ios|android` locally, or `eas build --profile development`.
+- Expo Go only includes its bundled native modules. After adding a library with native code, the app needs a development build: `bunx expo run:ios|android` locally, or `eas build --profile development`.
 - Prefer recommended Expo modules over third-party libraries, and check your available skills before adding dependencies. Docs: https://docs.expo.dev/versions/latest/index.md
