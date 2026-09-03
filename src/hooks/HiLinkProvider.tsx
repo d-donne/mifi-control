@@ -5,7 +5,6 @@ import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
 import { HiLinkError } from "@/src/api/errors";
 import { HiLinkClient } from "@/src/api/main";
-import { useRouter } from "expo-router";
 import * as Linking from "expo-linking";
 import {
   createContext,
@@ -24,10 +23,9 @@ interface HiLinkProviderProps {
 }
 
 export function HiLinkProvider({ children }: HiLinkProviderProps) {
-  const { credentials, isLoading: credsLoading } = useStoredCredentials();
+  const { credentials, isLoading: credsLoading, clear } = useStoredCredentials();
   const [client, setClient] = useState<HiLinkClient | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
 
   useEffect(() => {
     if (!credentials) return;
@@ -83,7 +81,7 @@ export function HiLinkProvider({ children }: HiLinkProviderProps) {
             )}
             <Button
               variant="outline"
-              onPress={() => router.push("/settings" as never)}
+              onPress={() => clear()}
             >
               <ButtonText>Edit credentials</ButtonText>
             </Button>

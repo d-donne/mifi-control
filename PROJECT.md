@@ -229,29 +229,55 @@ Any time we hit one of these signals: `text/html` content-type on an `/api/*` ca
 - Resolving the `tryRefillFromSesTokInfo()` unverified behavior (degrades safely; not blocking).
 - ~~Confirming whether the XHR swap actually fixes the 125003 login bug~~ — **done, confirmed working.**
 
-### Active work: credentials and login UI
+### Active work: dashboard
 
-Next focus area. The auth flow is proven; now we need to surface it to the user.
+**Next focus.** Auth + credentials flow is in place. Now we build the actual product surface — a real-time(ish) status dashboard showing battery, traffic, network strength, and other signals from the HiLink API.
 
-- **Move credentials out of `.env`.** Currently `EXPO_PUBLIC_MODEM_URL`, `EXPO_PUBLIC_USERNAME`, and `EXPO_PUBLIC_PASS` are read at runtime by `src/api/constants/index.ts`. This is fine for development but wrong for shipping: any user can see them in the JS bundle, the device URL is also exposed, and the file is checked into git (or at least referenced from a `.env` that has to be regenerated per device). Move to `expo-secure-store` for password and username, keep device URL in a small settings store.
-- **Settings screen.** A new route (`src/app/settings.tsx`) with form inputs for device URL, username, and password. Save → persist to `expo-secure-store` (password) and `AsyncStorage` or another `expo-secure-store` key (URL, username). On save, rebuild the `HiLinkClient` and re-trigger login.
-- **First-run flow.** If no credentials are stored, the app should route to the Settings screen instead of the test/status screen, and stay there until the user saves valid credentials.
-- **Connection-error UX.** When `triggerLogin()` fails with the user-friendly "Couldn't reach MiFi — are you connected to its Wi-Fi?" error, surface a clear "Open Wi-Fi settings" action (via `Linking.openSettings()`).
+**Endpoints available (already wired in `HiLinkClient`):**
+- `getStatus()` → `/api/monitoring/status` (ConnectionStatus, SignalIcon, CurrentNetworkTypeEx, etc.)
+- `getTraffic()` → `/api/monitoring/traffic-statistics` (CurrentDownload/Upload, TotalDownload/Upload)
+- `getDeviceInfo()` → `/api/device/information` (DeviceName, SerialNumber, Imei, HardwareVersion, SoftwareVersion)
+- `getSmsList()` → **not yet implemented** in `HiLinkClient`. Will need to be added. Endpoint: `/api/sms/sms-list` (per Salamek `api/Sms.py`).
+
+**Phase 1 — Read-only dashboard (in progress).** Cards showing: connection status + signal bars, network type (LTE/3G/etc.), battery percentage, current download/upload rates (KB/s), total download/upload (MB/GB), device info (model, firmware, IMEI), session Uptime.
+
+**Phase 2 — Actions.** Toggle mobile data (`setMobileData`), reboot, SMS list, send SMS, USSD. Out of scope until Phase 1 is shippable.
+
+**Phase 3 — Real-time updates.** Move from polled `useQuery` (current 8s) to either a tighter poll (2-3s) or a periodic background refetch with skeletons during the transition. The Salamek lib doesn't expose any push/socket mechanism, so polling is the only option. *Defer until Phase 1 is in.*
+
+### ~~Active work: credentials and login UI~~ — COMPLETE
+
+All four items in the original "credentials and login UI" plan shipped:
+- Credentials moved from `.env` to `expo-secure-store` via `useStoredCredentials` hook.
+- Settings screen at `src/app/settings.tsx` — Card + FormControl + Heading primitives (no VStack nesting).
+- First-run flow: provider renders `<Settings />` inline when no creds are present.
+- Connection-error UX with "Open Wi-Fi settings" + "Edit credentials" buttons.
+- Logout button on the test screen (`components/test.tsx`) — calls `clear()` and routes back to root, which renders Settings via the no-creds branch.
+
+**Known loose end (deferred):** the Settings screen's Save button always redirects to the test screen, even if the password was wrong. The user only sees the failure on the test screen's first poll. Needs a real auth flow that surfaces a credential error from `triggerLogin()` back to the Settings screen, and stays on Settings instead of redirecting on auth failure. Deferred until after Phase 1.
 
 ---
 
 ## Next steps (ordered)
 
-The 125003 resolution work is done. Current next steps focus on the credentials and login UI phase.
+The credentials phase is complete (see "Active work: dashboard" above for status). The next ordered work is the **dashboard phase**, broken into seven steps. Each step is small and shippable on its own; the order is dependency-driven, not "must do all at once."
 
-1. **Add a small `useStoredCredentials` hook** that reads (and returns) `{ baseUrl, username, password }` from `expo-secure-store`. Returns `null` for any missing field so the UI can branch on "first run" vs "configured." This is the foundation everything else builds on.
-2. **Refactor `HiLinkProvider`** to take credentials from the hook instead of from `.env` constants. On first render, if credentials are missing, render a "first-run" placeholder (no `HiLinkClient` constructed). When credentials arrive, run `HiLinkClient.connect(...)` and render normally.
-3. **Build the Settings screen** (`src/app/settings.tsx`): three inputs (URL, username, password), a Save button. On save, write to `expo-secure-store` and trigger a re-connect. Reuse the Gluestack primitives already in `components/ui/*` (Input, Button, VStack).
-4. **First-run routing.** In `src/app/_layout.tsx` (or a new `src/app/index.tsx` redirect), check the hook. If no credentials → route to `/settings`. Once saved, navigate to `/`.
-5. **Connection-error UX.** When `triggerLogin()` throws the "Couldn't reach MiFi" error, surface a button that calls `Linking.openSettings()` so the user can hop to Android's Wi-Fi settings without leaving the app.
-6. **Remove the diagnostic `console.log` lines in `triggerLogin()`** (post-login cookie, login set-cookie header, post-login token pool size) once the Settings screen is in and the auth path is exercised repeatedly. Keep them during development; remove when nothing is breaking.
-7. **Defer the `tryRefillFromSesTokInfo()` unverified-behavior investigation** — current behavior is wasteful (full re-login on token exhaustion) but correct, and not user-visible at 8s polling. Revisit if polling interval drops below ~3s.
-8. **Stop storing credentials in `.env`.** Once Settings is in, delete the `EXPO_PUBLIC_USERNAME` / `EXPO_PUBLIC_PASS` lines from `.env` and remove their readers in `src/api/constants/index.ts`. The `EXPO_PUBLIC_MODEM_URL` can stay as a default fallback for first-run, or be replaced with a hardcoded `http://192.168.8.1` since that's the universal MiFi default.
+1. **Decide the layout primitive.** Card grid vs FlatList of rows vs a flex layout. Recommendation: a single-column `VStack` of `<Card>`s, each card = one signal (status, traffic, device, network). Phone screens are narrow; multi-column grids buy little and look cramped.
+2. **Add `getSmsList()` to `HiLinkClient`.** Endpoint: `/api/sms/sms-list`. Returns a paginated XML list per Salamek `api/Sms.py`. Skip rendering for now — just the method on the client.
+3. **Extract a `useHiLinkQuery` wrapper hook.** Today's `useQuery` call is inlined in `components/test.tsx`. Move it to `src/hooks/useHiLinkQuery.ts` so multiple cards can use the same `useQuery` pattern with consistent error/loading states. Tiny abstraction, big readability win.
+4. **Build the `StatusCard` component.** First card in the dashboard. Shows: connection status (text + colored dot), signal strength (bars or % from `SignalIcon`), network type (LTE/3G/5G from `CurrentNetworkTypeEx`). Source: `getStatus()` polled at 8s.
+5. **Build the `TrafficCard` component.** Second card. Shows: current download/upload (KB/s, formatted with `Intl.NumberFormat` or a small `formatBytes` util), total download/upload (MB/GB). Source: `getTraffic()` polled at 8s.
+6. **Build the `DeviceCard` component.** Third card. Shows: device name, model, firmware version, IMEI (truncated, with a "copy" button), serial number. Source: `getDeviceInfo()`. **Polled less frequently** — every 60s — since it barely changes.
+7. **Wire the dashboard to the home screen.** Replace the raw JSON dump in `components/test.tsx` with the three cards. Keep the Logout button. Remove the `<Text>Additional info here</Text>` debug line.
+
+**Deferred (out of Phase 1):**
+- Battery percentage (need to verify which endpoint returns it on E5576-320 — likely `/api/monitoring/status` already contains it under a field name we haven't inspected).
+- Session uptime (also in monitoring status, need to inspect actual response shape).
+- SMS list, send SMS, USSD (Phase 2).
+- Real auth error handling (wrong password stays on Settings instead of redirecting — see "Active work" > "Known loose end").
+- Status bar theming (dark mode icons not visible against light backgrounds — see earlier session).
+- `tryRefillFromSesTokInfo()` unverified behavior (correct but wasteful on token exhaustion).
+- Diagnostic `console.log` lines in `triggerLogin()` (keep for now; remove when Phase 1 ships).
 
 ---
 
@@ -263,3 +289,5 @@ The 125003 resolution work is done. Current next steps focus on the credentials 
 - **2026-09-03 — Project tracker created.** `AGENTS.md` updated with the "learning project" rules (chat-only by default, no edits without explicit permission). `PROJECT.md` created as the single source of truth. `CLAUDE.md` updated to re-export `PROJECT.md` alongside `AGENTS.md`.
 - **2026-09-03 — Salamek reference section added.** Documented seven concrete learnings from the `Salamek/huawei-lte-api` Python source, with code excerpts and implications for our TS implementation. The home-page-CSRF-scrape insight (item 1) was the direct unblocker for the 125003 bug. *Unblocks:* future protocol investigations have a starting point.
 - **2026-09-03 — README rewritten.** Replaced the `create-expo-app` boilerplate with a project-specific README covering stack, status, run instructions, and config.
+- **2026-09-03 — Credentials phase shipped.** `useStoredCredentials` hook (`src/hooks/useStoredCredentials.ts`) reads/writes three values from `expo-secure-store`. `HiLinkProvider` refactored to consume the hook, drop the `.env` props, and render `<Settings />` inline when no creds are present. Settings screen at `src/app/settings.tsx` built with `Card` + `FormControl` + `Heading` primitives. `_layout.tsx` cleaned up (removed unused `useUniwind` import). Test screen got a Logout button that calls `clear()` and routes to root, which renders Settings via the no-creds branch. *Unblocks:* Phase 1 dashboard can now ship behind a real auth gate.
+- **2026-09-03 — Dashboard phase started.** Plan added to "Next steps" and "Active work" sections. Will build a single-column `VStack` of `Card`s showing status, traffic, and device info. Implementation steps 1-7 enumerated. SMS list method on the client is the first concrete addition; the other steps are component work.

@@ -2,7 +2,7 @@ import XMLBuilder from "fast-xml-builder";
 import { XMLParser } from "fast-xml-parser";
 import { REFERER } from "./constants";
 import { HiLinkError, isErrorResponse, TOKEN_ERROR_CODES } from "./errors";
-import {
+import type {
   DeviceErrorResponse,
   DeviceInfo,
   MonitoringStatus,
