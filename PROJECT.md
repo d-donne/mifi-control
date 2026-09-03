@@ -85,17 +85,25 @@ components/test.tsx           # Minimal proof-of-concept screen; useQuery(['stat
 
 ## Open work / blockers
 
-### Immediate blocker: login in-app fails with `125003`
+### ~~Immediate blocker: login in-app fails with `125003`~~ — RESOLVED
 
-**Symptom:** Despite all logged intermediate values (`sesInfo`, `initialToken`, `preLoginCookie`, `encodedPassword`) matching values that succeeded via manual curl, the in-app login fails with `Login failed:  (125003)`.
+**Resolution:** Rewrote `triggerLogin()` to follow Salamek's `Session._initialize_csrf_tokens_and_session` flow:
 
-**Root cause (suspected, unconfirmed):** React Native's `fetch()` silently drops the `Cookie` header — it's on the Fetch spec's forbidden-header-names list, and `fetch()` enforces that. Confirmed against react-native#13452. The device never receives the session cookie, so the login session is not properly established.
+1. GET the HTML home page (`http://192.168.8.1/`). Extract every `<meta name="csrf_token" content="...">` value via regex into the CSRF token pool. Read the real `Set-Cookie: SessionID=...` from the response headers.
+2. POST `/api/user/login` with the home-page cookie, the first pool token, `Referer: http://192.168.8.1/html/home.html`, and the SHA256-hashed password body.
+3. On success, swap the cookie (some firmware variants re-issue `Set-Cookie` post-login, others don't — we now handle both) and atomically rotate the pool from the response headers per Salamek's `refresh_csrf` pattern (prefer `__RequestVerificationTokenone` + `__RequestVerificationTokentwo`, fall back to the full `__RequestVerificationToken`).
 
-**Fix attempted (not yet on-device tested):** Replace `fetch()` with `XMLHttpRequest` via `src/api/utils/xhr.ts`. RN's XHR `setRequestHeader()` does **not** enforce the forbidden-header restriction. The `xhrRequest` wrapper is written and imported into `main.ts`; all four call sites (`SesTokInfo` GET, login POST, `tryRefillFromSesTokInfo` GET, generic `request<T>`) use it. Login has not yet been re-tested on-device with this swap.
+The XHR wrapper is also confirmed working — `Set-Cookie` is exposed on Android via `getAllResponseHeaders()`.
 
-**Open question (deferred from last session):** whether `getAllResponseHeaders()` via XHR actually exposes `Set-Cookie` on the target platform. Some platforms restrict reading that response header even outside `fetch`'s forbidden-name restrictions. Needs to be checked the first time login is retried.
+**Confirmed working on-device:** the proof-of-concept test screen now displays live `getStatus()` data, polled every 8s, with no 125003 errors. Logs show:
 
-**Secondary bug found during review (not yet fixed in source):** `triggerLogin()` was reading `__RequestVerificationTokenone` for the token pool. That header only contains the **first** token, not the full `#`-delimited pool. The full pool is in `__RequestVerificationToken`. Reading `one` leaves the pool with 1 element, which forces a refill (unverified) → relogin on every other authenticated request and likely contributes to cascading 125003s independent of the Cookie bug. **Fix: change the header read to `__RequestVerificationToken`.**
+```
+post-login cookie: SessionID=d1eCHAWgeUMwcCWE...
+login set-cookie header: SessionID=d1eCHAWgeUMwcCWE...; path=/; HttpOnly;
+post-login token pool size: 2
+```
+
+…and on a subsequent login (user-triggered refresh), the same `SessionID` is reused because the device didn't re-issue it — the fallback to keep the home-page cookie is what made this work.
 
 ### Known-unverified risk (deferred, not urgent)
 
@@ -212,34 +220,46 @@ Any time we hit one of these signals: `text/html` content-type on an `/api/*` ca
 
 ### Deferred features
 
-- Real UI/UX, navigation flow, Settings screen (device IP/credentials — currently hardcoded).
+- Real UI/UX, navigation flow, Settings screen (device IP/credentials — currently hardcoded in `.env`).
 - SMS reading (`getSmsList` was scoped but not implemented in the current rewritten version).
 - USSD.
 - Push notifications.
-- Zustand store for settings (deferred until Settings screen exists).
-- `expo-secure-store` for credentials (deferred until client fully works).
-- Resolving the `tryRefillFromSesTokInfo()` unverified behavior.
-- Confirming whether the XHR swap actually fixes the 125003 login bug (immediate next step).
+- Zustand store for settings (planned for the Settings screen — genuine multi-reader runtime state).
+- `expo-secure-store` for credentials (planned for the Settings screen).
+- Resolving the `tryRefillFromSesTokInfo()` unverified behavior (degrades safely; not blocking).
+- ~~Confirming whether the XHR swap actually fixes the 125003 login bug~~ — **done, confirmed working.**
+
+### Active work: credentials and login UI
+
+Next focus area. The auth flow is proven; now we need to surface it to the user.
+
+- **Move credentials out of `.env`.** Currently `EXPO_PUBLIC_MODEM_URL`, `EXPO_PUBLIC_USERNAME`, and `EXPO_PUBLIC_PASS` are read at runtime by `src/api/constants/index.ts`. This is fine for development but wrong for shipping: any user can see them in the JS bundle, the device URL is also exposed, and the file is checked into git (or at least referenced from a `.env` that has to be regenerated per device). Move to `expo-secure-store` for password and username, keep device URL in a small settings store.
+- **Settings screen.** A new route (`src/app/settings.tsx`) with form inputs for device URL, username, and password. Save → persist to `expo-secure-store` (password) and `AsyncStorage` or another `expo-secure-store` key (URL, username). On save, rebuild the `HiLinkClient` and re-trigger login.
+- **First-run flow.** If no credentials are stored, the app should route to the Settings screen instead of the test/status screen, and stay there until the user saves valid credentials.
+- **Connection-error UX.** When `triggerLogin()` fails with the user-friendly "Couldn't reach MiFi — are you connected to its Wi-Fi?" error, surface a clear "Open Wi-Fi settings" action (via `Linking.openSettings()`).
 
 ---
 
 ## Next steps (ordered)
 
-1. **Rewrite `triggerLogin()` to scrape the HTML homepage first** (per Salamek `Session._initialize_csrf_tokens_and_session`). Specifically:
-   - GET `http://192.168.8.1/` (or `/html/home.html`).
-   - Parse out *every* `<meta name="csrf_token" content="...">` value. That pool becomes the initial `tokenPool`.
-   - The `Set-Cookie: SessionID=...` from that HTML response (if present) becomes the auth cookie. If not, fall back to scraping a session ID from the HTML or to `SesTokInfo` as a secondary source.
-   - Only fall back to `/api/webserver/SesTokInfo` if the HTML scrape yielded zero CSRF tokens.
-   - After this works, drop the `SesTokInfo` call from the happy path entirely.
-2. **Update token-pool refill logic to match Salamek's `refresh_csrf` behavior** in `_post`: clear the pool, then refill from `__RequestVerificationTokenone` + `__RequestVerificationTokentwo` (legacy primary), falling back to the full `__RequestVerificationToken` header (modern fallback). Currently we read only the full header, which is the opposite priority.
-3. **Add a content-type sniff / bail** in the XHR wrapper or the response parser: if the body doesn't start with `<` or `{`, throw a clear "device returned unexpected content" error instead of silently parsing garbage as XML.
-4. **Re-test on device.** Expected: home page returns HTML with multiple `csrf_token` meta tags; login succeeds against `/api/user/login` with a `Set-Cookie` and a real `#`-delimited token pool; `getStatus()` polling returns real data.
-5. If still 125003: log the full raw header block on the login response to see whether `__RequestVerificationToken` / `__RequestVerificationTokenone` / `__RequestVerificationTokentwo` are present and what their values are. Per the current logs we only see one of them, which is consistent with the device being in an unauth state and serving HTML.
-6. If still 125003 after the above: switch login body Content-Type to `application/xml` (item 3 in the Salamek reference), then consider whether to drop manual Cookie management in favor of letting XHR's cookie store handle it (item 2 in the Salamek reference).
-7. Once login + polling are confirmed working end-to-end: remove diagnostic logs, commit baseline, then move on to Settings screen + `expo-secure-store` + Zustand for settings state.
+The 125003 resolution work is done. Current next steps focus on the credentials and login UI phase.
+
+1. **Add a small `useStoredCredentials` hook** that reads (and returns) `{ baseUrl, username, password }` from `expo-secure-store`. Returns `null` for any missing field so the UI can branch on "first run" vs "configured." This is the foundation everything else builds on.
+2. **Refactor `HiLinkProvider`** to take credentials from the hook instead of from `.env` constants. On first render, if credentials are missing, render a "first-run" placeholder (no `HiLinkClient` constructed). When credentials arrive, run `HiLinkClient.connect(...)` and render normally.
+3. **Build the Settings screen** (`src/app/settings.tsx`): three inputs (URL, username, password), a Save button. On save, write to `expo-secure-store` and trigger a re-connect. Reuse the Gluestack primitives already in `components/ui/*` (Input, Button, VStack).
+4. **First-run routing.** In `src/app/_layout.tsx` (or a new `src/app/index.tsx` redirect), check the hook. If no credentials → route to `/settings`. Once saved, navigate to `/`.
+5. **Connection-error UX.** When `triggerLogin()` throws the "Couldn't reach MiFi" error, surface a button that calls `Linking.openSettings()` so the user can hop to Android's Wi-Fi settings without leaving the app.
+6. **Remove the diagnostic `console.log` lines in `triggerLogin()`** (post-login cookie, login set-cookie header, post-login token pool size) once the Settings screen is in and the auth path is exercised repeatedly. Keep them during development; remove when nothing is breaking.
+7. **Defer the `tryRefillFromSesTokInfo()` unverified-behavior investigation** — current behavior is wasteful (full re-login on token exhaustion) but correct, and not user-visible at 8s polling. Revisit if polling interval drops below ~3s.
+8. **Stop storing credentials in `.env`.** Once Settings is in, delete the `EXPO_PUBLIC_USERNAME` / `EXPO_PUBLIC_PASS` lines from `.env` and remove their readers in `src/api/constants/index.ts`. The `EXPO_PUBLIC_MODEM_URL` can stay as a default fallback for first-run, or be replaced with a hardcoded `http://192.168.8.1` since that's the universal MiFi default.
 
 ---
 
 ## Change log
 
-- *(template — add entries as work completes: date, what changed, what unblocks what.)*
+- **2026-09-03 — 125003 login bug resolved.** Rewrote `triggerLogin()` in `src/api/main.ts` to scrape the HTML home page for CSRF tokens + `Set-Cookie` (per Salamek `Session._initialize_csrf_tokens_and_session`). Added `trySesTokInfoFallback()` as a defensive path for older firmware. Added `fetchHomePage()` to wrap the home page request with user-friendly error messages. Token-pool refill on login response now follows Salamek's `refresh_csrf` priority (`one`+`two` first, full header as fallback). Module-level helpers `extractCsrfTokens`, `extractSessionIdCookie`, `extractLoginTokenPool` extracted. Cleaned up `xhr.ts` (exported `XhrResponse`, removed diagnostic `console.log`s) and `errors/index.ts` (dropped dead `ERROR_CODES` export). *Unblocks:* the entire app — `getStatus()` polling now returns live data on-device.
+- **2026-09-03 — Post-login cookie fallback added.** First on-device run revealed the E5576-320 firmware does *not* always re-issue `Set-Cookie` on `/api/user/login`. Updated the post-login cookie extraction to keep the home-page `SessionID` when the login response has no new `Set-Cookie`, instead of throwing. Re-added two diagnostic `console.log`s at the post-login decision point (cookie + token pool size). *Unblocks:* stable auth across firmware variants.
+- **2026-09-03 — `ScrollView` import fix in `src/app/index.tsx`.** Was importing from `@expo/ui` (which doesn't export `ScrollView`). Switched to `react-native`. Removed dead `useState` for unused `result`/`loading`. Added `flex-1 bg-background` on `SafeAreaView` and `contentContainerClassName="flex-grow"` on `ScrollView` for proper layout. *Unblocks:* UI scrolling on Android.
+- **2026-09-03 — Project tracker created.** `AGENTS.md` updated with the "learning project" rules (chat-only by default, no edits without explicit permission). `PROJECT.md` created as the single source of truth. `CLAUDE.md` updated to re-export `PROJECT.md` alongside `AGENTS.md`.
+- **2026-09-03 — Salamek reference section added.** Documented seven concrete learnings from the `Salamek/huawei-lte-api` Python source, with code excerpts and implications for our TS implementation. The home-page-CSRF-scrape insight (item 1) was the direct unblocker for the 125003 bug. *Unblocks:* future protocol investigations have a starting point.
+- **2026-09-03 — README rewritten.** Replaced the `create-expo-app` boilerplate with a project-specific README covering stack, status, run instructions, and config.
