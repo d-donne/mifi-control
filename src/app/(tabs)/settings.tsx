@@ -1,5 +1,6 @@
 import { Button, ButtonText } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Center } from "@/components/ui/center";
 import {
   FormControl,
   FormControlError,
@@ -14,8 +15,7 @@ import { VStack } from "@/components/ui/vstack";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useStoredCredentials } from "../hooks/useStoredCredentials";
-import { Center } from "@/components/ui/center";
+import { useStoredCredentials } from "../../hooks/useStoredCredentials";
 
 const DEFAULT_URL = "http://192.168.8.1";
 const DEFAULT_USERNAME = "admin";
@@ -24,9 +24,7 @@ export default function Settings() {
   const router = useRouter();
   const { credentials, save } = useStoredCredentials();
 
-  const [baseUrl, setBaseUrl] = useState(
-    credentials?.baseUrl ?? DEFAULT_URL,
-  );
+  const [baseUrl, setBaseUrl] = useState(credentials?.baseUrl ?? DEFAULT_URL);
   const [username, setUsername] = useState(
     credentials?.username ?? DEFAULT_USERNAME,
   );
@@ -34,8 +32,7 @@ export default function Settings() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const urlInvalid =
-    error === "Device URL must start with http:// or https://";
+  const urlInvalid = error === "Device URL must start with http:// or https://";
   const credsInvalid = error === "Username and password are required";
 
   async function onSave() {
@@ -63,7 +60,7 @@ export default function Settings() {
 
   return (
     <SafeAreaView className="flex-1">
-      <Center className="h-screen p-4">
+      <Center className="h-screen bg-background p-4">
         <Card className="w-full">
           <VStack space="md">
             <Heading size="lg">MiFi Settings</Heading>

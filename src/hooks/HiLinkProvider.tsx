@@ -13,7 +13,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import Settings from "../app/settings";
+import Settings from "../app/(tabs)/settings";
 import { useStoredCredentials } from "./useStoredCredentials";
 
 const ClientContext = createContext<HiLinkClient | null>(null);
