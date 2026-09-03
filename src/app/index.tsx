@@ -1,18 +1,27 @@
 import { Box } from "@/components/ui/box";
-import { Button, ButtonText } from "@/components/ui/button";
 import { Center } from "@/components/ui/center";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Text } from "@/components/ui/text";
+import { VStack } from "@/components/ui/vstack";
+import { useState } from "react";
+import Test from "../../components/test";
 
 export default function Index() {
+  const [result, setResult] = useState("Not tested");
+  const [loading, setLoading] = useState(false);
+
+
+
   return (
-    <SafeAreaView>
-      <Box  className="bg-primary h-full w-full ">
-        <Center className="size-80 border">
-          <Button variant="secondary"  size="lg">
-            <ButtonText>skfjssdlsdf</ButtonText>
-          </Button>
-        </Center>
-      </Box>
-    </SafeAreaView>
+    <Box className="flex-1 bg-background">
+      <Center className="flex-1 px-6">
+        <VStack space="lg" className="w-full">
+          <Text className="text-2xl font-bold text-foreground">
+            MiFi Control
+          </Text>
+
+          <Test />
+        </VStack>
+      </Center>
+    </Box>
   );
 }

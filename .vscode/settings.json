@@ -3,5 +3,13 @@
     "source.fixAll": "explicit",
     "source.organizeImports": "explicit",
     "source.sortMembers": "explicit"
-  }
+  },
+  "editor.quickSuggestions": {
+    "other": "on",
+    "comments": "off",
+    "strings": "off"
+  },
+  "js/ts.preferences.preferTypeOnlyAutoImports": true,
+  "js/ts.preferences.includePackageJsonAutoImports": "on",
+ 
 }
