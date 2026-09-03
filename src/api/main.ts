@@ -10,7 +10,45 @@ import {
   TrafficStats,
 } from "./types";
 import { encodePassword } from "./utils/crypto";
-import { xhrRequest } from "./utils/xhr";
+import { xhrRequest, type XhrResponse } from "./utils/xhr";
+
+/**
+ * Extracts every `<meta name="csrf_token" content="...">` value from an
+ * HTML string. Returns an array (the CSRF token pool), or [] if none
+ * are found.
+ */
+function extractCsrfTokens(html: string): string[] {
+  const re = /<meta\s+name="csrf_token"\s+content="([^"]+)"/gi;
+  return [...html.matchAll(re)].map((m) => m[1]);
+}
+
+/**
+ * Pulls the `SessionID=...` value out of a `Set-Cookie` header. Returns
+ * `null` if the header is missing or doesn't contain a SessionID.
+ */
+function extractSessionIdCookie(setCookie: string | null): string | null {
+  if (!setCookie) return null;
+  const match = setCookie.match(/SessionID=([^;]+)/i);
+  return match ? `SessionID=${match[1]}` : null;
+}
+
+/**
+ * Reads the post-login CSRF token pool from the login response headers.
+ * Per Salamek's `refresh_csrf` pattern: prefer the legacy `one` + `two`
+ * headers (older firmware), falling back to the full `#`-delimited
+ * `__RequestVerificationToken` header (modern firmware).
+ */
+function extractLoginTokenPool(res: XhrResponse): string[] {
+  const one = res.headers.get("__RequestVerificationTokenone");
+  if (one) {
+    const pool = [one];
+    const two = res.headers.get("__RequestVerificationTokentwo");
+    if (two) pool.push(two);
+    return pool;
+  }
+  const full = res.headers.get("__RequestVerificationToken");
+  return full ? full.split("#").filter(Boolean) : [];
+}
 
 export class HiLinkClient {
   private readonly baseUrl: string;
@@ -42,48 +80,55 @@ export class HiLinkClient {
   }
 
   /**
-   * builds the pre-login cookie then swaps real Set-Cookie the device issues on success,
-   * then loads the token pool
+   * Logs the user in.
+   *
+   * Strategy (matches Salamek/huawei-lte-api's
+   * Session._initialize_csrf_tokens_and_session for the E5576-320):
+   *   1. GET the HTML home page. It returns a real `Set-Cookie: SessionID=...`
+   *      and one or more `<meta name="csrf_token" content="...">` tags
+   *      that form the initial CSRF token pool.
+   *   2. POST /api/user/login with the cookie, first pool token, Referer,
+   *      and the SHA256-hashed password body.
+   *   3. On success, swap the cookie (the device issues a fresh SessionID
+   *      post-login) and atomically rotate the pool from the response
+   *      headers.
+   *
+   * `trySesTokInfoFallback` is only reached if the home page scrape
+   * yielded no CSRF tokens (older firmware, or a future firmware update
+   * that drops the meta tags).
    */
   private async triggerLogin(): Promise<void> {
-    const sesRes = await xhrRequest(`${this.baseUrl}/api/webserver/SesTokInfo`);
-    if (!sesRes.ok) {
-      throw new HiLinkError(
-        `Failed to trigger login: HTTP ${sesRes.status}`,
-        sesRes.status,
-      );
+    const home = await this.fetchHomePage();
+
+    this.tokenPool = extractCsrfTokens(home.body);
+    this.cookie = extractSessionIdCookie(home.setCookie);
+
+    if (this.tokenPool.length === 0 || !this.cookie) {
+      await this.trySesTokInfoFallback();
     }
 
-    const sesData = this.parser.parse(
-      await sesRes.text(),
-    ) as SessionTokenResponse;
-    const sesInfo: string | undefined = sesData?.response?.SesInfo;
-    const initialToken: string | undefined = sesData?.response?.TokInfo;
-    if (!sesInfo || !initialToken) {
+    if (this.tokenPool.length === 0) {
       throw new HiLinkError(
-        "Malformed session response: is this a HiLink device?",
+        "Login failed: no CSRF tokens available (home page + SesTokInfo both empty)",
       );
     }
+    if (!this.cookie) {
+      throw new HiLinkError("Login failed: no SessionID cookie available");
+    }
 
-    // device expects SessionID as cookie name
-    const preLoginCookie = `SessionID=${sesInfo}`;
+    const firstToken = this.tokenPool[0];
     const encodedPassword = await encodePassword(
       this.username,
       this.password,
-      initialToken,
+      firstToken,
     );
-
-    console.log("sesInfo:", sesInfo);
-    console.log("initialToken:", initialToken);
-    console.log("preLoginCookie:", preLoginCookie);
-    console.log("encodedPassword:", encodedPassword);
 
     const loginRes = await xhrRequest(`${this.baseUrl}/api/user/login`, {
       method: "POST",
       headers: {
         "Content-Type": "text/xml; charset=UTF-8",
-        Cookie: preLoginCookie,
-        __RequestVerificationToken: initialToken,
+        Cookie: this.cookie,
+        __RequestVerificationToken: firstToken,
         Referer: REFERER,
       },
       body: this.builder.build({
@@ -95,7 +140,9 @@ export class HiLinkClient {
       }),
     });
 
-    console.log("login status:", loginRes.status);
+    if (!loginRes.ok) {
+      throw new HiLinkError(`Login HTTP ${loginRes.status}`, loginRes.status);
+    }
 
     const loginBody = this.parser.parse(await loginRes.text());
     if (isErrorResponse(loginBody)) {
@@ -105,18 +152,90 @@ export class HiLinkClient {
       );
     }
 
+    const postLoginCookie = extractSessionIdCookie(
+      loginRes.headers.get("set-cookie"),
+    );
+    if (postLoginCookie) {
+      this.cookie = postLoginCookie;
+    } else if (!this.cookie) {
+      throw new HiLinkError("Login succeeded but no SessionID was returned");
+    }
+    // else: keep the home-page cookie. Some firmware variants don't
+    // re-issue Set-Cookie on /api/user/login, but the home-page cookie
+    // is still valid post-login.
 
-    // on success, the device sends a real Set-Cookie to be used for subsequent requests
-    const setCookie = loginRes.headers.get("set-cookie");
-    if (!setCookie)
-      throw new HiLinkError("Login succeeded but no token poll was returned");
-    this.cookie = setCookie.split(";")[0];
+    console.log("post-login cookie:", this.cookie);
+    console.log("login set-cookie header:", loginRes.headers.get("set-cookie"));
 
-    // token comes back as # delimited pool of one-time use tokens
-    const tokenHeader = loginRes.headers.get("__RequestVerificationTokenone");
-    this.tokenPool = tokenHeader ? tokenHeader.split("#").filter(Boolean) : [];
-    if (this.tokenPool.length === 0)
-      throw new HiLinkError("Login succeeded but no token poll was returned");
+    this.tokenPool = extractLoginTokenPool(loginRes);
+    console.log("post-login token pool size:", this.tokenPool.length);
+    if (this.tokenPool.length === 0) {
+      throw new HiLinkError(
+        "Login succeeded but no CSRF tokens were returned",
+      );
+    }
+  }
+
+  /**
+   * Fallback for firmware that doesn't expose CSRF tokens on the HTML home
+   * page. Builds a pre-login SessionID from the body's `SesInfo` and a
+   * single initial token from `TokInfo`.
+   */
+  private async trySesTokInfoFallback(): Promise<void> {
+    const res = await xhrRequest(`${this.baseUrl}/api/webserver/SesTokInfo`);
+    if (!res.ok) {
+      throw new HiLinkError(
+        `SesTokInfo fallback failed: HTTP ${res.status}`,
+        res.status,
+      );
+    }
+
+    const data = this.parser.parse(await res.text()) as SessionTokenResponse;
+    const sesInfo = data?.response?.SesInfo;
+    const initialToken = data?.response?.TokInfo;
+
+    if (!sesInfo) {
+      throw new HiLinkError(
+        "SesTokInfo fallback: no SesInfo in response — is this a HiLink device?",
+      );
+    }
+
+    if (!this.cookie) {
+      this.cookie = `SessionID=${sesInfo}`;
+    }
+    if (this.tokenPool.length === 0 && initialToken) {
+      this.tokenPool = [initialToken];
+    }
+  }
+
+  /**
+   * GETs the device's HTML home page. Returns the body and the raw
+   * `Set-Cookie` header (if any). Network failures are wrapped in a
+   * user-friendly HiLinkError.
+   */
+  private async fetchHomePage(): Promise<{
+    body: string;
+    setCookie: string | null;
+  }> {
+    let res;
+    try {
+      res = await xhrRequest(`${this.baseUrl}/`);
+    } catch (e) {
+      throw new HiLinkError(
+        `Couldn't reach MiFi at ${this.baseUrl} — are you connected to its Wi-Fi? (${String(e)})`,
+      );
+    }
+
+    if (!res.ok) {
+      throw new HiLinkError(
+        `Home page returned HTTP ${res.status} — is ${this.baseUrl} really a HiLink device?`,
+      );
+    }
+
+    return {
+      body: await res.text(),
+      setCookie: res.headers.get("set-cookie"),
+    };
   }
 
   // ======= TOKEN MANAGEMENT =======
@@ -129,11 +248,13 @@ export class HiLinkClient {
   }
 
   /**
-   * TEST: may not work
-   * rehit the SesTokInfo endpoint to get a new token pool without a full
-   * re-login. keep the already authenticated cookie untouched
+   * Re-hits SesTokInfo to get a single fresh token without a full
+   * re-login. Note: unverified whether SesTokInfo called while already
+   * authenticated returns a token valid for the existing cookie, or
+   * silently starts a new anonymous session. If the refill fails,
+   * `request<T>` falls through to a full `triggerLogin()`.
    */
-  private async tryRefillFromSesTokInfo(): Promise<Boolean> {
+  private async tryRefillFromSesTokInfo(): Promise<boolean> {
     try {
       const res = await xhrRequest(`${this.baseUrl}/api/webserver/SesTokInfo`);
       if (!res.ok) return false;
@@ -142,7 +263,7 @@ export class HiLinkClient {
         this.tokenPool = [data.response.TokInfo];
         return true;
       }
-    } catch (error) {
+    } catch {
       // fall through to re-login
     }
     return false;
@@ -175,7 +296,7 @@ export class HiLinkClient {
     }
 
     if (!token || !this.cookie)
-      throw new HiLinkError("No valid session after login/refres attempts");
+      throw new HiLinkError("No valid session after login/refresh attempts");
 
     const headers: Record<string, string> = {
       "Content-Type": "text/xml; charset=UTF-8",
