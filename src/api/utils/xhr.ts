@@ -33,6 +33,10 @@ export function xhrRequest(
     xhr.onload = () => {
       const rawHeaders = xhr.getAllResponseHeaders();
 
+      console.log("=== RAW HEADERS FROM", url, "===");
+      console.log(rawHeaders);
+      console.log("=== END RAW HEADERS ===");
+
       resolve({
         ok: xhr.status >= 200 && xhr.status < 300,
         status: xhr.status,
