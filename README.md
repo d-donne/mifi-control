@@ -2,7 +2,7 @@
 
 A custom Expo / React Native / TypeScript app to control a Huawei E5576-320 MiFi directly over local Wi-Fi, replacing the official "AI Life" app. The phone talks straight to the device at `http://192.168.8.1` over its local HiLink HTTP API — no backend server in between.
 
-> **Note:** this is a learning project. I work through the problem themselves; contributions are intentionally minimal.
+> **Note:** this is a learning project. contributions are intentionally minimal.
 
 ## Stack
 
@@ -54,4 +54,3 @@ components/       Reusable UI (including Gluestack primitives under ui/)
 ## License
 
 See [`LICENSE`](./LICENSE).
-
