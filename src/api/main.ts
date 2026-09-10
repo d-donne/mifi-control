@@ -2,30 +2,9 @@ import XMLBuilder from "fast-xml-builder";
 import { XMLParser } from "fast-xml-parser";
 import { REFERER } from "./constants";
 import { HiLinkError, isErrorResponse, TOKEN_ERROR_CODES } from "./errors";
-import type {
-  DeviceErrorResponse,
-  DeviceInfo,
-  MonitoringStatus,
-  SessionTokenResponse,
-  TrafficStats,
-} from "./types";
+import type { DeviceErrorResponse, SessionTokenResponse } from "./types";
 import { encodePassword } from "./utils/crypto";
 import { xhrRequest, type XhrResponse } from "./utils/xhr";
-
-/**
- * Typed endpoint maps — one per API family. The key is the path segment
- * after `/api/<family>/`, the value is the parsed `<response>` body type.
- * Adding a future endpoint is one line here; call sites get autocomplete
- * and wrong names become compile errors.
- */
-interface MonitoringEndpoints {
-  status: MonitoringStatus;
-  "traffic-statistics": TrafficStats;
-}
-
-interface DeviceEndpoints {
-  information: DeviceInfo;
-}
 
 /**
  * Extracts every `<meta name="csrf_token" content="...">` value from an
@@ -348,42 +327,20 @@ export class HiLinkClient {
     return parsed as T;
   }
 
-  /* ====== TYPED PER-DOMAIN GETTERS.
-   * One generic method per API family; the endpoint name is a typed key and
-   * the response type resolves from the map. Adding a future endpoint is
-   * one line in the map — zero client changes, full autocomplete, wrong
-   * names are compile errors. */
-  getMonitoring<K extends keyof MonitoringEndpoints>(
-    endpoint: K,
-  ): Promise<MonitoringEndpoints[K]> {
-    return this.request<{ response: MonitoringEndpoints[K] }>(
-      `/api/monitoring/${endpoint}`,
-    ).then((res) => res.response);
-  }
-
-  getDevice<K extends keyof DeviceEndpoints>(
-    endpoint: K,
-  ): Promise<DeviceEndpoints[K]> {
-    return this.request<{ response: DeviceEndpoints[K] }>(
-      `/api/device/${endpoint}`,
-    ).then((res) => res.response);
-  }
-
-  async setMobileData(enabled: boolean): Promise<void> {
-    await this.request("/api/dialup/mobile-dataswitch", {
-      method: "POST",
-      bodyObj: {
-        dataswitch: enabled ? 1 : 0,
-      },
-    });
-  }
-
-  async reboot(): Promise<void> {
-    await this.request("/api/device/control", {
-      method: "POST",
-      bodyObj: {
-        Control: 1,
-      },
-    });
+  /**
+   * Internal transport accessor for route modules under `src/api/routes/`.
+   * Not part of the public API — prefer the typed functions in
+   * `src/api/routes/*` (e.g. `getMonitoring(client, "status")`).
+   *
+   * @internal
+   */
+  requestAs<T>(
+    path: string,
+    opts: {
+      method?: "GET" | "POST";
+      bodyObj?: Record<string, unknown>;
+    } = {},
+  ): Promise<T> {
+    return this.request<T>(path, opts);
   }
 }
