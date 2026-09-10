@@ -51,7 +51,7 @@
       --online-dot: 15 255 15;
       --battery-ring: 15 118 86;
       --battery-ring-track: 226 232 240;
-      --data-ring: 29 158 117;
+      --data-ring: 37 99 235;
       --data-ring-track: 226 232 240;
       --throughput-line: 55 138 221;
       --throughput-fill: 55 138 221;
@@ -93,7 +93,7 @@
       --online-dot: 24, 237, 24;
       --battery-ring: 52 211 153;
       --battery-ring-track: 68 68 68;
-      --data-ring: 52 211 153;
+      --data-ring: 96 165 250;
       --data-ring-track: 68 68 68;
       --throughput-line: 96 165 250;
       --throughput-fill: 96 165 250;

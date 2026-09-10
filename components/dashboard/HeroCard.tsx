@@ -24,19 +24,19 @@ export default function HeroCard() {
 
   const { data: device } = useQuery({
     queryKey: ["device"],
-    queryFn: () => client.getDeviceInfo(),
+    queryFn: () => client.getDevice("information"),
     refetchInterval: 60000,
   });
 
   const { data: status } = useQuery({
     queryKey: ["status"],
-    queryFn: () => client.getStatus(),
+    queryFn: () => client.getMonitoring("status"),
     refetchInterval: 8000,
   });
 
   const { data: traffic } = useQuery({
     queryKey: ["traffic"],
-    queryFn: () => client.getTraffic(),
+    queryFn: () => client.getMonitoring("traffic-statistics"),
     refetchInterval: 2000,
   });
 
@@ -70,13 +70,7 @@ export default function HeroCard() {
         <VStack>
           <GradientText
             text={networkLabel(status?.CurrentNetworkTypeEx)}
-            colors={[
-              colors.primaryBlue,
-              colors.secondary,
-              colors.dataRingTrack,
-              colors.chart4,
-              colors.ringDanger,
-            ]}
+            colors={[colors.primaryForeground, colors.secondary]}
             fontSize={36}
             fontWeight="700"
             start={{ x: 0, y: 0 }}

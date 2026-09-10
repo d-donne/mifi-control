@@ -11,7 +11,7 @@ export default function Header() {
   const client = useHiLinkClient();
   const { dataUpdatedAt, error } = useQuery({
     queryKey: ["status"],
-    queryFn: () => client.getStatus(),
+    queryFn: () => client.getMonitoring("status"),
     refetchInterval: 8000,
   });
 
