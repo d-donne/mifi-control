@@ -3,19 +3,18 @@ import { Button, ButtonText } from "@/components/ui/button";
 import { Center } from "@/components/ui/center";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
-import { useQuery } from "@tanstack/react-query";
+import { getMonitoring } from "@/src/api/routes";
 import { useRouter } from "expo-router";
 import { useStoredCredentials } from "../src/hooks/useStoredCredentials";
-import { useHiLinkClient } from "../src/hooks/HiLinkProvider";
+import { useHiLinkQuery } from "../src/hooks/useHiLinkQuery";
 
 export default function Test() {
-  const client = useHiLinkClient();
   const { clear } = useStoredCredentials();
   const router = useRouter();
 
-  const { data, error, isLoading } = useQuery({
+  const { data, error, isLoading } = useHiLinkQuery({
     queryKey: ["status"],
-    queryFn: () => client.getMonitoring("status"),
+    queryFn: (client) => getMonitoring(client, "status"),
     refetchInterval: 8000,
   });
 

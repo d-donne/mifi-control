@@ -4,8 +4,8 @@ import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
 import { ArrowDown, ArrowUp } from "lucide-react-native";
 import PulsingDot from "../common/PulsingDot";
-import { useHiLinkClient } from "@/src/hooks/HiLinkProvider";
-import { useQuery } from "@tanstack/react-query";
+import { getDevice, getMonitoring } from "@/src/api/routes";
+import { useHiLinkQuery } from "@/src/hooks/useHiLinkQuery";
 import { formatNetRate, isOnline, networkLabel } from "@/src/api/utils";
 import { Divider } from "../ui/divider";
 import useSignalConfig from "./SignalConfig";
@@ -20,23 +20,21 @@ import GradientText from "../common/GradientText";
  */
 
 export default function HeroCard() {
-  const client = useHiLinkClient();
-
-  const { data: device } = useQuery({
+  const { data: device } = useHiLinkQuery({
     queryKey: ["device"],
-    queryFn: () => client.getDevice("information"),
+    queryFn: (client) => getDevice(client, "information"),
     refetchInterval: 60000,
   });
 
-  const { data: status } = useQuery({
+  const { data: status } = useHiLinkQuery({
     queryKey: ["status"],
-    queryFn: () => client.getMonitoring("status"),
+    queryFn: (client) => getMonitoring(client, "status"),
     refetchInterval: 8000,
   });
 
-  const { data: traffic } = useQuery({
+  const { data: traffic } = useHiLinkQuery({
     queryKey: ["traffic"],
-    queryFn: () => client.getMonitoring("traffic-statistics"),
+    queryFn: (client) => getMonitoring(client, "traffic-statistics"),
     refetchInterval: 2000,
   });
 

@@ -4,14 +4,13 @@ import { Text } from "@/components/ui/text";
 import { HStack } from "@/components/ui/hstack";
 import { RefreshCw, User } from "lucide-react-native";
 import { formatRelativeTime, getGreeting } from "@/src/api/utils/date";
-import { useQuery } from "@tanstack/react-query";
-import { useHiLinkClient } from "@/src/hooks/HiLinkProvider";
+import { getMonitoring } from "@/src/api/routes";
+import { useHiLinkQuery } from "@/src/hooks/useHiLinkQuery";
 
 export default function Header() {
-  const client = useHiLinkClient();
-  const { dataUpdatedAt, error } = useQuery({
+  const { dataUpdatedAt, error } = useHiLinkQuery({
     queryKey: ["status"],
-    queryFn: () => client.getMonitoring("status"),
+    queryFn: (client) => getMonitoring(client, "status"),
     refetchInterval: 8000,
   });
 

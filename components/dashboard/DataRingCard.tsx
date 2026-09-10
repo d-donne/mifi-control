@@ -1,19 +1,18 @@
 import { getProgress } from "@/components/common/CircularProgress";
+import { getMonitoring } from "@/src/api/routes";
 import { formatBytes } from "@/src/api/utils";
-import { useHiLinkClient } from "@/src/hooks/HiLinkProvider";
 import { useAppColors } from "@/src/hooks/useAppColors";
-import { useQuery } from "@tanstack/react-query";
+import { useHiLinkQuery } from "@/src/hooks/useHiLinkQuery";
 import StatRingCard from "./StatRingCard";
 
 const DATA_CAP_BYTES = 5 * 1024 * 1024 * 1024;
 
 export default function DataRingCard() {
-  const client = useHiLinkClient();
   const colors = useAppColors();
 
-  const { data: traffic } = useQuery({
+  const { data: traffic } = useHiLinkQuery({
     queryKey: ["traffic"],
-    queryFn: () => client.getMonitoring("traffic-statistics"),
+    queryFn: (client) => getMonitoring(client, "traffic-statistics"),
     refetchInterval: 8000,
   });
 
