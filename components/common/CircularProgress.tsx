@@ -1,13 +1,12 @@
 import { useEffect } from "react";
 import Animated, {
+  Easing,
   useAnimatedProps,
   useSharedValue,
   withTiming,
-  Easing,
 } from "react-native-reanimated";
 import Svg, { Circle } from "react-native-svg";
-import { Box } from "./ui/box";
-import { Center } from "./ui/center";
+import { Center } from "../ui/center";
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -15,10 +14,10 @@ interface CircularProgressProps {
   progress: number; // Decimal values: e.g. 0.65 for 65%
   radius?: number; // Inner radius boundary configuration
   strokeWidth?: number;
-  activeColor?: string; // Standard hex or RGB color string
+  activeColor?: string;
   trackColor?: string;
   duration?: number;
-  children?: React.ReactNode; // Centers your Gluestack texts & labels natively
+  children?: React.ReactNode;
 }
 
 export default function CircularProgress({
@@ -47,9 +46,9 @@ export default function CircularProgress({
 
   return (
     // Box dimensions assigned safely using inline styles while layout uses Uniwind configuration
-    <Box
+    <Center
       style={{ width: totalBoxSize, height: totalBoxSize }}
-      className="relative items-center justify-center"
+      className="relative"
     >
       <Svg
         width={totalBoxSize}
@@ -82,9 +81,7 @@ export default function CircularProgress({
       </Svg>
 
       {/* Centered Overlay Layer */}
-      {children && (
-        <Center className="absolute">{children}</Center>
-      )}
-    </Box>
+      {children && <Center className="absolute">{children}</Center>}
+    </Center>
   );
 }
