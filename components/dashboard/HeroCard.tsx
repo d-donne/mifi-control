@@ -3,20 +3,20 @@ import { HStack } from "@/components/ui/hstack";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
 import { ArrowDown, ArrowUp } from "lucide-react-native";
-import PulsingDot from "./PulsingDot";
+import PulsingDot from "../common/PulsingDot";
 import { useHiLinkClient } from "@/src/hooks/HiLinkProvider";
 import { useQuery } from "@tanstack/react-query";
 import { formatNetRate, isOnline, networkLabel } from "@/src/api/utils";
 import { Divider } from "../ui/divider";
 import useSignalConfig from "./SignalConfig";
 import SignalPattern from "./SignalPattern";
-import { LinearGradient } from "expo-linear-gradient";
 import { useAppColors } from "@/src/hooks/useAppColors";
-import GradientText from "./GradientText";
+import GradientText from "../common/GradientText";
 
 /**
  * The "carrier name" field is a TODO — the MiFi API doesn't expose it.
  * The signal-quality text is derived from `signalIcon` (0-5) untiled text.
+ * v2: name can be got from /net/current-plmn
  */
 
 export default function HeroCard() {
@@ -42,16 +42,12 @@ export default function HeroCard() {
 
   const colors = useAppColors();
 
-  // The MiFi API doesn't expose carrier name. TODO: when we find a
-  // /api/device/information-equivalent endpoint that returns operator
-  // name, wire it here.
   const carrier: string | null = "MTN GH";
 
-  // const signalConfig = useSignalConfig(status?.SignalIcon);
-  const signalConfig = useSignalConfig(5);
+  const signalConfig = useSignalConfig(status?.SignalIcon);
 
   return (
-    <Box className="bg-primary dark:bg-primary/90 mx-4 rounded-2xl p-5  relative overflow-hidden">
+    <Box className="bg-primary dark:bg-primary/90 rounded-2xl p-5  relative overflow-hidden">
       {/* Top row: eyebrow + status pill */}
       <HStack className="items-center justify-between">
         <Text className="text-xs uppercase tracking-wider text-primary-foreground/80 font-semibold">

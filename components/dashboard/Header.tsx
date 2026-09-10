@@ -24,7 +24,7 @@ export default function Header() {
   }
 
   return (
-    <HStack className="items-start justify-between px-4 pt-4 pb-2">
+    <HStack className="items-start justify-between pb-2">
       <Box>
         <Text className="text-2xl font-bold text-foreground">
           {getGreeting()}

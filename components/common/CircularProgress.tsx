@@ -20,6 +20,10 @@ interface CircularProgressProps {
   children?: React.ReactNode;
 }
 
+export function getProgress(value: number, total: number) {
+  return Math.max(0, Math.min(1, value / total));
+}
+
 export default function CircularProgress({
   progress,
   radius = 60,
