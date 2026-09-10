@@ -15,7 +15,7 @@ export default function Test() {
 
   const { data, error, isLoading } = useQuery({
     queryKey: ["status"],
-    queryFn: () => client.getStatus(),
+    queryFn: () => client.getMonitoring("status"),
     refetchInterval: 8000,
   });
 

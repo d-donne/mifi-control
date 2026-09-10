@@ -12,9 +12,11 @@ export class HiLinkError extends Error {
 
 /**
  * Session/CSRF token error codes. Returned when the session has expired
- * or is invalid; the request should be retried after a token rotation.
+ * or is invalid; the request should be retried after a full re-login.
+ * Stored as strings — compare with String(code) since fast-xml-parser
+ * returns <code> as a number.
  */
-export const TOKEN_ERROR_CODES = new Set<number | string>([
+export const TOKEN_ERROR_CODES = new Set<string>([
   "125001",
   "125002",
   "125003",

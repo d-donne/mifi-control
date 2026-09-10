@@ -13,6 +13,21 @@ import { encodePassword } from "./utils/crypto";
 import { xhrRequest, type XhrResponse } from "./utils/xhr";
 
 /**
+ * Typed endpoint maps — one per API family. The key is the path segment
+ * after `/api/<family>/`, the value is the parsed `<response>` body type.
+ * Adding a future endpoint is one line here; call sites get autocomplete
+ * and wrong names become compile errors.
+ */
+interface MonitoringEndpoints {
+  status: MonitoringStatus;
+  "traffic-statistics": TrafficStats;
+}
+
+interface DeviceEndpoints {
+  information: DeviceInfo;
+}
+
+/**
  * Extracts every `<meta name="csrf_token" content="...">` value from an
  * HTML string. Returns an array (the CSRF token pool), or [] if none
  * are found.
@@ -52,7 +67,6 @@ function extractLoginTokenPool(res: XhrResponse): string[] {
 
 export class HiLinkClient {
   private readonly baseUrl: string;
-
   private readonly username: string;
   private readonly password: string;
 
@@ -170,9 +184,7 @@ export class HiLinkClient {
     this.tokenPool = extractLoginTokenPool(loginRes);
     console.log("post-login token pool size:", this.tokenPool.length);
     if (this.tokenPool.length === 0) {
-      throw new HiLinkError(
-        "Login succeeded but no CSRF tokens were returned",
-      );
+      throw new HiLinkError("Login succeeded but no CSRF tokens were returned");
     }
   }
 
@@ -320,8 +332,12 @@ export class HiLinkClient {
       | DeviceErrorResponse;
 
     if (isErrorResponse(parsed)) {
-      if (TOKEN_ERROR_CODES.has(parsed.error.code)) {
-        this.tokenPool = []; // force refill on retry
+      if (TOKEN_ERROR_CODES.has(String(parsed.error.code))) {
+        // Session is dead — an anonymous SesTokInfo refill can't revive it
+        // (it would succeed but mint a token for a new anonymous session,
+        // not our authed cookie). Go straight to full re-login with the
+        // stored creds, then retry the original request once.
+        await this.triggerLogin();
         return this.request<T>(path, opts, attempt + 1);
       }
       throw new HiLinkError(
@@ -332,22 +348,24 @@ export class HiLinkClient {
     return parsed as T;
   }
 
-  /* ====== PUBLIC ENDPOINTS */
-  getStatus(): Promise<MonitoringStatus> {
-    return this.request<{ response: MonitoringStatus }>(
-      "/api/monitoring/status",
+  /* ====== TYPED PER-DOMAIN GETTERS.
+   * One generic method per API family; the endpoint name is a typed key and
+   * the response type resolves from the map. Adding a future endpoint is
+   * one line in the map — zero client changes, full autocomplete, wrong
+   * names are compile errors. */
+  getMonitoring<K extends keyof MonitoringEndpoints>(
+    endpoint: K,
+  ): Promise<MonitoringEndpoints[K]> {
+    return this.request<{ response: MonitoringEndpoints[K] }>(
+      `/api/monitoring/${endpoint}`,
     ).then((res) => res.response);
   }
 
-  getTraffic(): Promise<TrafficStats> {
-    return this.request<{ response: TrafficStats }>(
-      "/api/monitoring/traffic-statistics",
-    ).then((res) => res.response);
-  }
-
-  getDeviceInfo(): Promise<DeviceInfo> {
-    return this.request<{ response: DeviceInfo }>(
-      "/api/device/information",
+  getDevice<K extends keyof DeviceEndpoints>(
+    endpoint: K,
+  ): Promise<DeviceEndpoints[K]> {
+    return this.request<{ response: DeviceEndpoints[K] }>(
+      `/api/device/${endpoint}`,
     ).then((res) => res.response);
   }
 
