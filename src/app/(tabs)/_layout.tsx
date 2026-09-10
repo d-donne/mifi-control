@@ -1,16 +1,6 @@
+import TabBar from "@/components/TabBar";
 import { Tabs } from "expo-router";
-import TabBar from "@/components/dashboard/TabBar";
 
-/**
- * Tabs navigator for the four destinations:
- *   - index    (Home dashboard)
- *   - devices  (placeholder for now)
- *   - sms      (placeholder for now)
- *   - settings (credentials screen, moved from src/app/settings.tsx)
- *
- * Uses a custom floating-pill tab bar (components/dashboard/TabBar.tsx).
- * The default React Navigation tab bar is replaced via the `tabBar` prop.
- */
 export default function TabsLayout() {
   return (
     <Tabs

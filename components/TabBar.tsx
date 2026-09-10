@@ -7,27 +7,10 @@ import {
   LucideIcon,
   MessageCircle,
   Settings as SettingsIcon,
-  TabletSmartphone
+  TabletSmartphone,
 } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Center } from "../ui/center";
-
-/**
- * Custom floating-pill tab bar for the home/dashboard tabs.
- *
- * Visual:
- *  - Floating pill at the bottom of the screen with side margins.
- *  - 4 items: Home, Devices, SMS, Settings.
- *  - Active item: filled --primary pill behind icon + label, with
- *    --primary-foreground (white) on both icon and text. The filled pill is
- *    what makes the active state visually pop.
- *  - Inactive items: muted-foreground icon (no label). In dark mode the
- *    muted-foreground token is bumped lighter than usual so the inactive icons
- *    stay clearly readable on the dark bar.
- *  - Inactive items: muted-foreground icon, no label.
- *  - Bar background uses bg-card, sits above the screen background (bg-background)
- *    for two-tier surface hierarchy per the dashboard spec.
- */
+import { Center } from "./ui/center";
 
 type RouteName = "index" | "devices" | "sms" | "settings";
 
@@ -38,10 +21,7 @@ const TAB_META: Record<RouteName, { Icon: LucideIcon; label: string }> = {
   settings: { Icon: SettingsIcon, label: "Settings" },
 };
 
-export default function TabBar({
-  state,
-  navigation,
-}: BottomTabBarProps) {
+export default function TabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
 
   return (
@@ -54,10 +34,7 @@ export default function TabBar({
       }}
       className="pointer-events-box-none"
     >
-      <Center
-        className="bg-card/95 flex-row p-2"
-        style={{ borderRadius: 100 }}
-      >
+      <Center className="bg-card/95 flex-row p-2" style={{ borderRadius: 100 }}>
         {state.routes.map((route, index) => {
           const meta = TAB_META[route.name as RouteName];
           if (!meta) return null;
