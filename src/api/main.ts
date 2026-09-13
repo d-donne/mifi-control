@@ -52,7 +52,15 @@ export class HiLinkClient {
   private cookie: string | null = null;
   private tokenPool: string[] = [];
 
-  private readonly parser = new XMLParser({ ignoreAttributes: false });
+  private readonly parser = new XMLParser({
+    ignoreAttributes: false,
+    // The wire is strings; every route module coerces its own numeric
+    // fields explicitly at the boundary (see src/api/utils/coerce.ts).
+    // Implicit strnum coercion corrupted phone numbers ("024…" → 241…,
+    // leading zero eaten before any code ran) and turned all-digit SMS
+    // content into numbers, crashing string methods downstream.
+    parseTagValue: false,
+  });
   private readonly builder = new XMLBuilder({ ignoreAttributes: false });
 
   // constructor is private to enforce the use of the static connect method
@@ -320,7 +328,7 @@ export class HiLinkClient {
         return this.request<T>(path, opts, attempt + 1);
       }
       throw new HiLinkError(
-        `Device returned error: ${parsed.error.message}`,
+        `Device returned error: ${parsed.error.message ?? `code ${parsed.error.code} (no message)`}`,
         parsed.error.code,
       );
     }

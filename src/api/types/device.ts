@@ -20,3 +20,10 @@ export interface DeviceInfo {
   workmode: string;
   [key: string]: unknown;
 }
+
+/**
+ * Raw wire shape — the parser is configured with `parseTagValue: false`,
+ * so every tag arrives as a string. DeviceInfo is all strings, so the raw
+ * wire object is the typed shape (see routes/device.ts).
+ */
+export type DeviceInfoRaw = Record<string, string>;

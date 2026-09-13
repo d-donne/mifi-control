@@ -15,3 +15,10 @@ export interface TrafficStats {
   showtraffic: 0 | 1;
   [key: string]: unknown;
 }
+
+/**
+ * Raw wire shape — the parser is configured with `parseTagValue: false`,
+ * so every tag arrives as a string. Coerced to `TrafficStats` by
+ * `getMonitoring` (routes/monitoring.ts) via the `num`/`flag` helpers.
+ */
+export type TrafficStatsRaw = Record<string, string>;

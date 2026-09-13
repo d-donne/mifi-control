@@ -58,3 +58,11 @@ export interface MonitoringStatus {
   poorSignalStatus: number;
   [key: string]: unknown;
 }
+
+/**
+ * Raw wire shape — the parser is configured with `parseTagValue: false`,
+ * so every tag arrives as a string. Coerced to `MonitoringStatus` by
+ * `getMonitoring` (routes/monitoring.ts) via the `num`/`flag` helpers.
+ * New fields default to string and are typed when first used.
+ */
+export type MonitoringStatusRaw = Record<string, string>;
