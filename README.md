@@ -14,6 +14,7 @@ Dev build required
 ## Docs
 
 - [`PROJECT.md`](./PROJECT.md) — project tracker (state, next steps, change log).
+- [`p-docs/`](./p-docs/) — feature research notes (`sms-research.md`, `dashboard.md`, `auth.md`)
 
 ## License
 
