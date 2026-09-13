@@ -11,6 +11,7 @@ import {
 } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Center } from "./ui/center";
+import { useAppColors } from "@/src/hooks/useAppColors";
 
 type RouteName = "index" | "devices" | "sms" | "settings";
 
@@ -23,6 +24,7 @@ const TAB_META: Record<RouteName, { Icon: LucideIcon; label: string }> = {
 
 export default function TabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const colors = useAppColors();
 
   return (
     <Box
@@ -67,10 +69,10 @@ export default function TabBar({ state, navigation }: BottomTabBarProps) {
               >
                 <Icon
                   size={20}
-                  className={
+                  color={
                     focused
-                      ? "text-primary-foreground"
-                      : "text-muted-foreground"
+                      ? colors.primaryForeground
+                      : colors.mutedForeground
                   }
                 />
                 {focused && (

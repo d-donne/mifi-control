@@ -6,8 +6,10 @@ import { RefreshCw, User } from "lucide-react-native";
 import { formatRelativeTime, getGreeting } from "@/src/api/utils/date";
 import { getMonitoring } from "@/src/api/routes";
 import { useHiLinkQuery } from "@/src/hooks/useHiLinkQuery";
+import { useAppColors } from "@/src/hooks/useAppColors";
 
 export default function Header() {
+  const colors = useAppColors();
   const { dataUpdatedAt, error } = useHiLinkQuery({
     queryKey: ["status"],
     queryFn: (client) => getMonitoring(client, "status"),
@@ -41,7 +43,7 @@ export default function Header() {
         hitSlop={8}
         className="bg-secondary rounded-full p-2"
       >
-        <User size={18} className="text-secondary-foreground" />
+        <User size={18} color={colors.secondaryForeground} />
       </Pressable>
     </HStack>
   );
