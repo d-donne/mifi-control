@@ -1,8 +1,19 @@
 import XMLBuilder from "fast-xml-builder";
 import { XMLParser } from "fast-xml-parser";
 import { REFERER } from "./constants";
-import { HiLinkError, isErrorResponse, TOKEN_ERROR_CODES } from "./errors";
-import type { DeviceErrorResponse, SessionTokenResponse } from "./types";
+import {
+  LOGIN_ALREADY_LOGGED_IN_CODES,
+  LOGIN_LOCKOUT_CODES,
+  LOGIN_WRONG_CREDENTIALS_CODES,
+  HiLinkError,
+  isErrorResponse,
+  TOKEN_ERROR_CODES,
+} from "./errors";
+import type {
+  DeviceErrorResponse,
+  SessionTokenResponse,
+  StateLoginResponse,
+} from "./types";
 import { encodePassword } from "./utils/crypto";
 import { xhrRequest, type XhrResponse } from "./utils/xhr";
 
@@ -52,6 +63,14 @@ export class HiLinkClient {
   private cookie: string | null = null;
   private tokenPool: string[] = [];
 
+  /**
+   * In-flight login promise. Concurrent request() calls that all discover
+   * a dead session share one triggerLogin() instead of each firing their
+   * own — Salamek's single-shot retry, adapted to our async transport.
+   * Cleared (finally) when the login settles.
+   */
+  private loginInFlight: Promise<void> | null = null;
+
   private readonly parser = new XMLParser({
     ignoreAttributes: false,
     // The wire is strings; every route module coerces its own numeric
@@ -76,8 +95,50 @@ export class HiLinkClient {
     password: string,
   ): Promise<HiLinkClient> {
     const client = new HiLinkClient(baseUrl, username, password);
-    await client.triggerLogin();
+    await client.ensureLoggedIn();
     return client;
+  }
+
+  /**
+   * Warm-session gate (Salamek's User.login without force_new_login).
+   * GETs user/state-login with the current cookie: State "0" means the
+   * device already considers this session authenticated → skip the full
+   * login dance (this is the AI Life "never ask again" behavior).
+   * Anything else (logged out, unreachable state endpoint, no cookie yet)
+   * falls through to a full triggerLogin().
+   */
+  private async ensureLoggedIn(): Promise<void> {
+    if (this.cookie) {
+      try {
+        const res = await xhrRequest(`${this.baseUrl}/api/user/state-login`, {
+          headers: { Cookie: this.cookie, Referer: REFERER },
+        });
+        if (res.ok) {
+          const data = this.parser.parse(
+            await res.text(),
+          ) as StateLoginResponse;
+          if (data?.response && String(data.response.State) === "0") {
+            return;
+          }
+        }
+      } catch {
+        // fall through to full login
+      }
+    }
+    await this.triggerLogin();
+  }
+
+  /**
+   * Single-flight wrapper around triggerLogin. Concurrent callers share
+   * the one in-flight login; all resume when it settles.
+   */
+  private loginOnce(): Promise<void> {
+    if (!this.loginInFlight) {
+      this.loginInFlight = this.triggerLogin().finally(() => {
+        this.loginInFlight = null;
+      });
+    }
+    return this.loginInFlight;
   }
 
   /**
@@ -147,10 +208,26 @@ export class HiLinkClient {
 
     const loginBody = this.parser.parse(await loginRes.text());
     if (isErrorResponse(loginBody)) {
-      throw new HiLinkError(
-        `Login failed: ${loginBody.error.message}`,
-        loginBody.error.code,
-      );
+      const code = String(loginBody.error.code);
+      if (LOGIN_ALREADY_LOGGED_IN_CODES.has(code)) {
+        // 108003: device says this session is already authenticated.
+        // Salamek treats it as success — proceed to pool rotation below.
+      } else if (LOGIN_WRONG_CREDENTIALS_CODES.has(code)) {
+        throw new HiLinkError(
+          `Login failed: wrong username or password (device code ${code}) — check Settings, not retrying.`,
+          loginBody.error.code,
+        );
+      } else if (LOGIN_LOCKOUT_CODES.has(code)) {
+        throw new HiLinkError(
+          `Login failed: device is throttling login attempts (code ${code}) — wait a few minutes before retrying.`,
+          loginBody.error.code,
+        );
+      } else {
+        throw new HiLinkError(
+          `Login failed: ${loginBody.error.message ?? `code ${code}`}`,
+          loginBody.error.code,
+        );
+      }
     }
 
     const postLoginCookie = extractSessionIdCookie(
@@ -240,10 +317,39 @@ export class HiLinkClient {
   // ======= TOKEN MANAGEMENT =======
 
   /**
-   * Returns the next available token from the pool, or null if the pool is empty.
+   * Picks the token for the next request without draining the pool.
+   * Per Salamek's Session.post: consume (shift) while more than one
+   * token remains, then reuse the last token indefinitely. The pool is
+   * replenished from POST response headers (see refreshTokensFromResponse),
+   * so the steady state is: shift 2→1 once, reuse 1 forever.
+   * Previously this did shift() unconditionally, draining the 2-3 token
+   * pool within seconds under polling and forcing a full re-login storm.
+   *
+   * GET requests only consume when exactly 1 token remains (Salamek's
+   * Session.get); with a fuller pool they send no token header at all.
+   * Returns the token to use, plus whether the caller should attach it.
    */
-  private nextToken(): string | null {
-    return this.tokenPool.shift() ?? null;
+  private pickToken(isGet: boolean): { token: string | null; attach: boolean } {
+    if (isGet && this.tokenPool.length > 1) {
+      return { token: null, attach: false };
+    }
+    if (this.tokenPool.length > 1)
+      return { token: this.tokenPool.shift()!, attach: true };
+    const last = this.tokenPool[0] ?? null;
+    return { token: last, attach: last !== null };
+  }
+
+  /**
+   * Extracts CSRF tokens from a POST response's headers into the pool.
+   * Mirrors Salamek's refresh_csrf: prefer legacy `one` + `two` headers,
+   * fall back to `#`-delimited `__RequestVerificationToken`.
+   * When refreshCsrf is set (login), the pool is replaced; otherwise the
+   * fresh tokens are prepended ahead of the reused last token.
+   */
+  private refreshTokensFromResponse(res: XhrResponse, replace: boolean): void {
+    const fresh = extractLoginTokenPool(res);
+    if (fresh.length === 0) return;
+    this.tokenPool = replace ? fresh : [...fresh, ...this.tokenPool];
   }
 
   /**
@@ -270,6 +376,12 @@ export class HiLinkClient {
 
   /**
    * make a request to the HiLink device. automatically handles session refresh and token rotation.
+   * Retry policy (Salamek's single-shot shape): at most ONE re-login per
+   * call. A token error (125001/125002/125003) triggers one shared
+   * single-flight login, then exactly one retry of the original request.
+   * Anything else — including a second token error — surfaces to the
+   * caller. Login errors (108001/108002/108006/108007) never retry here:
+   * triggerLogin throws typed errors and callers (Settings UI) decide.
    */
   private async request<T>(
     path: string,
@@ -277,32 +389,28 @@ export class HiLinkClient {
       method?: "GET" | "POST";
       bodyObj?: Record<string, unknown>;
     } = {},
-    attempt = 0,
+    retried = false,
   ): Promise<T> {
-    if (attempt > 2)
-      throw new HiLinkError(
-        "Exhausted retries: refill and re-login both failed",
-      );
-
-    let token = this.nextToken();
-    if (!token) {
+    const isGet = (opts.method ?? "GET") === "GET";
+    let { token, attach } = this.pickToken(isGet);
+    if (attach && !token) {
       const refilled = await this.tryRefillFromSesTokInfo();
-      token = refilled ? this.nextToken() : null;
-      if (!token) {
-        await this.triggerLogin();
-        token = this.nextToken();
+      if (refilled) ({ token, attach } = this.pickToken(isGet));
+      if (attach && !token) {
+        await this.loginOnce();
+        ({ token, attach } = this.pickToken(isGet));
       }
     }
 
-    if (!token || !this.cookie)
+    if ((attach && !token) || !this.cookie)
       throw new HiLinkError("No valid session after login/refresh attempts");
 
     const headers: Record<string, string> = {
       "Content-Type": "text/xml; charset=UTF-8",
       Cookie: this.cookie,
-      __RequestVerificationToken: token,
       Referer: REFERER,
     };
+    if (attach && token) headers.__RequestVerificationToken = token;
 
     const body = opts.bodyObj
       ? this.builder.build({ request: opts.bodyObj })
@@ -314,18 +422,22 @@ export class HiLinkClient {
       body,
     });
 
+    if ((opts.method ?? "GET") === "POST") {
+      this.refreshTokensFromResponse(res, false);
+    }
+
     const parsed = this.parser.parse(await res.text()) as
       | T
       | DeviceErrorResponse;
 
     if (isErrorResponse(parsed)) {
-      if (TOKEN_ERROR_CODES.has(String(parsed.error.code))) {
+      if (TOKEN_ERROR_CODES.has(String(parsed.error.code)) && !retried) {
         // Session is dead — an anonymous SesTokInfo refill can't revive it
         // (it would succeed but mint a token for a new anonymous session,
-        // not our authed cookie). Go straight to full re-login with the
-        // stored creds, then retry the original request once.
-        await this.triggerLogin();
-        return this.request<T>(path, opts, attempt + 1);
+        // not our authed cookie). One shared single-flight re-login with
+        // the stored creds, then exactly one retry of the original request.
+        await this.loginOnce();
+        return this.request<T>(path, opts, true);
       }
       throw new HiLinkError(
         `Device returned error: ${parsed.error.message ?? `code ${parsed.error.code} (no message)`}`,

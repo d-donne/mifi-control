@@ -29,3 +29,18 @@ export interface DeviceErrorResponse {
     message?: string;
   };
 }
+
+/**
+ * Response shape for GET /api/user/state-login.
+ * LoginStateEnum: LOGGED_IN=0, LOGGED_OUT=-1, REPEAT=-2 —
+ * State "0" means the session IS authenticated. `password_type` selects the login hash
+ * scheme (4 = SHA256, which is what we always send).
+ */
+export interface StateLoginResponse {
+  response: {
+    State: string;
+    Username?: string;
+    password_type?: string;
+    [key: string]: unknown;
+  };
+}
