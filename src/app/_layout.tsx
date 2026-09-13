@@ -6,7 +6,8 @@ import {
   QueryClient,
   QueryClientProvider,
 } from "@tanstack/react-query";
-import { Slot } from "expo-router";
+import { Stack } from "expo-router";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { HiLinkProvider } from "../hooks/HiLinkProvider";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -28,14 +29,16 @@ const queryClinet = new QueryClient({
 export default function App() {
   return (
     <QueryClientProvider client={queryClinet}>
-      <SafeAreaProvider>
-        <StatusBar animated style="light" />
-        <GluestackUIProvider mode="system">
-          <HiLinkProvider>
-            <Slot />
-          </HiLinkProvider>
-        </GluestackUIProvider>
-      </SafeAreaProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <SafeAreaProvider >
+          <StatusBar animated style="light" />
+          <GluestackUIProvider mode="system">
+            <HiLinkProvider>
+              <Stack screenOptions={{ headerShown: false }} />
+            </HiLinkProvider>
+          </GluestackUIProvider>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
       <Toast />
     </QueryClientProvider>
   );
