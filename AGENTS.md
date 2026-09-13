@@ -7,8 +7,8 @@ This is a **learning project** — the owner is working through the problem them
 - **Don't edit files.** Provide explanations, reasoning, and code snippets in chat. The owner will apply changes.
 - **Don't run state-changing commands** (installs, builds, git writes, etc.) without explicit permission.
 - **Read-only inspection is fine** when needed to give an accurate answer (listing files, reading file contents, searching the codebase, reading docs).
-- If the owner asks a question that can be answered from existing code/context, answer it directly — no need to invoke tools.
-- When code snippets are provided in chat, include full file contents and exact code, not partial diffs, so the owner can paste them in cleanly.
+- If the owner asks a question that can be answered from existing code/context, answer it directly. If the answer requires new code, provide a minimal snippet and explain how to integrate it into the existing codebase.
+- When diagnosing an issue, lead with WHAT / WHY / HOW and use minimal snippets only to prove a concept — never paste whole-file rewrites. After owner reviews, they will give you instruction on how to handle file edits.
 
 Project state, what's been built, what's blocked, and what's next lives in `PROJECT.md` — keep it in sync as the owner makes progress. If asked to update `PROJECT.md`, do so; otherwise treat it as a read-only reference.
 
