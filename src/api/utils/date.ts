@@ -54,3 +54,23 @@ export function getGreeting(date = new Date()) {
 
   return "Good night";
 }
+
+/**
+ * Full datetime for SMS display. Device dates arrive as
+ * "YYYY-MM-DD HH:MM:SS" (naive device-local). Rendered as
+ * "13 Sep 2026, 14:32" so timestamps are unambiguous in-thread.
+ */
+export function formatFullDateTime(input: string): string {
+  // "YYYY-MM-DD HH:MM:SS" → ISO local form; parsed as local time.
+  const date = new Date(input.replace(" ", "T"));
+  if (Number.isNaN(date.getTime())) return input;
+
+  return new Intl.DateTimeFormat("en", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(date);
+}

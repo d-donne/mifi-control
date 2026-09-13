@@ -1,23 +1,17 @@
-import { Center } from "@/components/ui/center";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
+import SmsList from "@/components/sms/SmsList";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function Sms() {
   return (
-    <SafeAreaView className="flex-1 bg-background">
-      <Center className="flex-1">
-        <VStack space="md" className="items-center">
-          <Text className="text-2xl font-bold text-foreground">SMS</Text>
-          <Text className="text-sm text-muted-foreground">
-            Read and send messages — coming soon
-          </Text>
-          <Text className="text-xs text-muted-foreground text-center px-8">
-            Requires the /api/sms/sms-list endpoint, not yet implemented in
-            HiLinkClient.
-          </Text>
-        </VStack>
-      </Center>
+    <SafeAreaView>
+      <VStack className="h-full bg-background">
+        <Text className="text-2xl font-bold text-foreground px-4 pt-2">
+          SMS
+        </Text>
+        <SmsList />
+      </VStack>
     </SafeAreaView>
   );
 }
