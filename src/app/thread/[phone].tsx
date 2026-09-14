@@ -14,8 +14,8 @@ export default function ThreadScreen() {
   const color = useAppColors()
 
   return (
-    <SafeAreaView>
-      <VStack className="h-full bg-background">
+    <SafeAreaView style={{flex: 1, backgroundColor: color.background}}>
+      <VStack className="flex-1">
         <HStack className="items-center px-4 py-2" space="sm">
           <Pressable onPress={() => router.back()} hitSlop={8}>
             <ChevronLeft color={color.foreground} size={24} />

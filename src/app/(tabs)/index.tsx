@@ -7,16 +7,17 @@ import { ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useStoredCredentials } from "@/src/hooks/useStoredCredentials";
 import UsageStats from "@/components/dashboard/UsageStats";
+import { useAppColors } from "@/src/hooks/useAppColors";
 
 export default function Home() {
   const { clear } = useStoredCredentials();
   const router = useRouter();
+  const colors = useAppColors()
 
   return (
-    <SafeAreaView>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <ScrollView
         contentContainerClassName="flex-grow pb-6 px-3 pt-2"
-        className="bg-background h-full"
       >
         <Header />
         <VStack space="lg" className="">

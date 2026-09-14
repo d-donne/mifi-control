@@ -16,6 +16,8 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useStoredCredentials } from "../../hooks/useStoredCredentials";
+import { useAppColors } from "@/src/hooks/useAppColors";
+import { Eye, EyeOff } from "lucide-react-native";
 
 const DEFAULT_URL = "http://192.168.8.1";
 const DEFAULT_USERNAME = "admin";
@@ -23,6 +25,7 @@ const DEFAULT_USERNAME = "admin";
 export default function Settings() {
   const router = useRouter();
   const { credentials, save } = useStoredCredentials();
+  const colors = useAppColors();
 
   const [baseUrl, setBaseUrl] = useState(credentials?.baseUrl ?? DEFAULT_URL);
   const [username, setUsername] = useState(
@@ -31,6 +34,7 @@ export default function Settings() {
   const [password, setPassword] = useState(credentials?.password ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [seePassword, setSeePassword] = useState(false);
 
   const urlInvalid = error === "Device URL must start with http:// or https://";
   const credsInvalid = error === "Username and password are required";
@@ -59,12 +63,11 @@ export default function Settings() {
   const isTopLevelError = error && !urlInvalid && !credsInvalid;
 
   return (
-    <SafeAreaView className="flex-1">
-      <Center className="h-screen bg-background p-4">
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <Center className="flex-1 mx-4">
         <Card className="w-full">
           <VStack space="md">
             <Heading size="lg">MiFi Settings</Heading>
-
             <FormControl isInvalid={urlInvalid}>
               <FormControlLabel>
                 <FormControlLabelText>Device URL</FormControlLabelText>
@@ -105,16 +108,32 @@ export default function Settings() {
               <FormControlLabel>
                 <FormControlLabelText>Password</FormControlLabelText>
               </FormControlLabel>
-              <Input>
+              <Input className="relative">
                 <InputField
                   value={password}
                   onChangeText={setPassword}
-                  secureTextEntry
+                  secureTextEntry={!seePassword}
                   autoCapitalize="none"
                   autoCorrect={false}
                   autoComplete="password"
                   placeholder="••••••••"
                 />
+                <Button
+                  variant="ghost"
+                  onPress={() => setSeePassword(!seePassword)}
+                >
+                  {seePassword ? (
+                    <EyeOff
+                      color={colors.mutedForeground}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 "
+                    />
+                  ) : (
+                    <Eye
+                      color={colors.mutedForeground}
+                      className="absolute  right-2 top-1/2 -translate-y-1/2 "
+                    />
+                  )}
+                </Button>
               </Input>
               {credsInvalid && (
                 <FormControlError>
