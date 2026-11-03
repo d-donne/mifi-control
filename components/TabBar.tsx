@@ -1,5 +1,6 @@
 import { Pressable } from "@/components/ui/pressable";
 import { Text } from "@/components/ui/text";
+import { useDeviceNotifications } from "@/src/hooks/useAllSms";
 import { useAppColors } from "@/src/hooks/useAppColors";
 import type { MaterialTopTabBarProps } from "expo-router/js-top-tabs";
 import {
@@ -42,6 +43,7 @@ export default function TabBar({
   const insets = useSafeAreaInsets();
   const colors = useAppColors();
   const [width, setWidth] = useState(0);
+  const unreadSms = useDeviceNotifications().data?.UnreadMessage ?? 0;
 
   const count = state.routes.length;
   const slot = count > 0 ? width / count : 0;
@@ -96,6 +98,7 @@ export default function TabBar({
               extrapolate: "clamp",
             });
             const muted = Animated.subtract(1, active);
+            const badge = route.name === "sms" ? unreadSms : 0;
 
             return (
               <Pressable
@@ -112,7 +115,9 @@ export default function TabBar({
                 }}
                 accessibilityRole="tab"
                 accessibilityState={{ selected: focused }}
-                accessibilityLabel={label}
+                accessibilityLabel={
+                  badge > 0 ? `${label}, ${badge} unread` : label
+                }
                 className="flex-1 items-center justify-center gap-0.5 py-2"
               >
                 <View>
@@ -124,6 +129,16 @@ export default function TabBar({
                   >
                     <Icon size={20} color={colors.primaryForeground} />
                   </Animated.View>
+                  {badge > 0 && (
+                    <View
+                      className="absolute h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1"
+                      style={{ top: -6, left: 12 }}
+                    >
+                      <Text className="text-[9px] leading-3 font-bold text-destructive-foreground">
+                        {badge > 99 ? "99+" : badge}
+                      </Text>
+                    </View>
+                  )}
                 </View>
                 <View>
                   <Animated.View style={{ opacity: muted }}>

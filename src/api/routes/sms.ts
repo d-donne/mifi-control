@@ -11,6 +11,7 @@ import type {
 import {
   BoxType as BoxTypeValues,
   SmsType as SmsTypeValues,
+  Smstat as SmstatValues,
   SortType as SortTypeValues,
 } from "../types/sms";
 import { decodeHtmlEntities } from "../utils";
@@ -30,15 +31,44 @@ export function formatDeviceDate(d: Date = new Date()): string {
   );
 }
 
+// Received SMS are stamped with UTC+5:30 wall-clock time although the network
+// is UTC+0 (measured 2026-11-03, p-docs/sms-research.md). Sent SMS carry the
+// local clock of the app that sent them.
+const RECEIVED_UTC_OFFSET_MIN = 330;
+
+const DEVICE_DATE = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/;
+
+function smsTime(date: string, received: boolean): number {
+  const match = DEVICE_DATE.exec(date);
+  if (!match) return 0;
+  const [year, month, day, hours, minutes, seconds] = match
+    .slice(1)
+    .map(Number) as [number, number, number, number, number, number];
+  return received
+    ? Date.UTC(
+        year,
+        month - 1,
+        day,
+        hours,
+        minutes - RECEIVED_UTC_OFFSET_MIN,
+        seconds,
+      )
+    : new Date(year, month - 1, day, hours, minutes, seconds).getTime();
+}
+
 export function normalizeSmsMessage(raw: RawSmsMessage): SmsMessage {
   const { Index, Smstat, SaveType, Priority, SmsType, ...rest } = raw;
+  const smstat = toNumber(Smstat);
+  const date = raw.Date ?? "";
+  const received = smstat === SmstatValues.NEW || smstat === SmstatValues.READ;
   return {
     ...rest,
     Index: toNumber(Index),
-    Smstat: toNumber(Smstat),
+    Smstat: smstat,
     Phone: decodeHtmlEntities(raw.Phone ?? ""),
     Content: decodeHtmlEntities(raw.Content ?? ""),
-    Date: raw.Date ?? "",
+    Date: date,
+    time: smsTime(date, received),
     Sca: raw.Sca ?? "",
     SaveType: toNumber(SaveType),
     Priority: toNumber(Priority),
@@ -85,20 +115,14 @@ export async function getSmsList(
   return normalizeSmsListResponse(res.response);
 }
 
-/**
- * Device datetime "YYYY-MM-DD HH:MM:SS" (naive device-local) → epoch ms.
- * Non-parseable dates → NaN (caller decides).
- */
-function deviceDateToMs(date: string): number {
-  return new Date(date.replace(" ", "T")).getTime();
-}
-
 export interface FetchAllSmsResult {
   messages: SmsMessage[];
   /** Pages actually fetched (for diagnostics). */
   pages: number;
   /** If a mid-loop page failed, the error that stopped it (non-fatal). */
   error: Error | null;
+  /** A multipart message was skipped while the device reassembles it. */
+  deferred: boolean;
 }
 
 /**
@@ -118,6 +142,7 @@ export async function fetchAllSms(
   const messages: SmsMessage[] = [];
   let pages = 0;
   let lastError: Error | null = null;
+  let deferred = false;
 
   for (let page = 1; page <= maxPages; page++) {
     let res: SmsListResponse;
@@ -135,9 +160,13 @@ export async function fetchAllSms(
     // with empty Content).
     const now = Date.now();
     for (const m of res.Messages) {
-      if (m.SmsType === SmsTypeValues.MULTIPART) {
-        const t = deviceDateToMs(m.Date);
-        if (Number.isFinite(t) && now - t < 10_000) continue;
+      if (
+        m.SmsType === SmsTypeValues.MULTIPART &&
+        m.time &&
+        now - m.time < 10_000
+      ) {
+        deferred = true;
+        continue;
       }
       messages.push(m);
     }
@@ -145,7 +174,7 @@ export async function fetchAllSms(
     if (res.Messages.length < pageSize) break; // last, partial page
   }
 
-  return { messages, pages, error: lastError };
+  return { messages, pages, error: lastError, deferred };
 }
 
 export async function getSmsCount(

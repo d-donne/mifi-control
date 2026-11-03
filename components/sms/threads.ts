@@ -52,13 +52,13 @@ export function groupThreads(messages: SmsMessage[]): SmsThread[] {
         count: 1,
       });
     } else {
-      if (m.Date > existing.lastMessage.Date) existing.lastMessage = m;
+      if (m.time > existing.lastMessage.time) existing.lastMessage = m;
       if (m.Smstat === 0) existing.unreadCount += 1;
       existing.count += 1;
     }
   }
-  return [...map.values()].sort((a, b) =>
-    b.lastMessage.Date.localeCompare(a.lastMessage.Date),
+  return [...map.values()].sort(
+    (a, b) => b.lastMessage.time - a.lastMessage.time,
   );
 }
 
@@ -76,7 +76,7 @@ export function filterThreads(
 }
 
 /**
- * All messages of one contact, ascending by device date — the conversation
+ * All messages of one contact, ascending by time — the conversation
  * view. Reads from the SAME array the list groups (the useAllSms query),
  * so list and detail can never disagree about what exists.
  */
@@ -86,7 +86,7 @@ export function threadMessages(
 ): SmsMessage[] {
   return messages
     .filter((m) => phonesMatch(m.Phone, phone))
-    .sort((a, b) => a.Date.localeCompare(b.Date));
+    .sort((a, b) => a.time - b.time);
 }
 
 export function phonesMatch(a: unknown, b: unknown): boolean {

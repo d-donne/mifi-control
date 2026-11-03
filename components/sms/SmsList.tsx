@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
 import { formatListTime } from "@/src/api/utils";
-import { useAllSms } from "@/src/hooks/useAllSms";
+import { useAllSms, useDeviceNotifications } from "@/src/hooks/useAllSms";
 import { useAppColors } from "@/src/hooks/useAppColors";
 import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
@@ -67,7 +67,7 @@ const ThreadRow = memo(function ThreadRow({ item }: { item: SmsThread }) {
                 : "text-xs text-muted-foreground"
             }
           >
-            {formatListTime(item.lastMessage.Date)}
+            {formatListTime(item.lastMessage.time)}
           </Text>
         </HStack>
         <HStack className="items-start gap-2">
@@ -130,6 +130,7 @@ export default function SmsList() {
 
   const all = useAllSms();
   const partialError = all.data?.error;
+  const storageFull = useDeviceNotifications().data?.SmsStorageFull === 1;
 
   const threads = useMemo(
     () => groupThreads(all.data?.messages ?? []),
@@ -182,6 +183,16 @@ export default function SmsList() {
             </InputSlot>
           )}
         </Input>
+        {storageFull && (
+          <VStack className="rounded-2xl bg-destructive/15 px-4 py-3">
+            <Text className="text-sm font-semibold text-destructive">
+              SMS storage is full
+            </Text>
+            <Text className="text-xs text-foreground">
+              The MiFi can&apos;t receive new texts until some are deleted.
+            </Text>
+          </VStack>
+        )}
       </VStack>
 
       {all.isPending ? (

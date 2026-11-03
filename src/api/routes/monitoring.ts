@@ -2,6 +2,8 @@ import type { HiLinkClient } from "../main";
 import type {
   DataPlan,
   DataPlanRaw,
+  DeviceNotifications,
+  DeviceNotificationsRaw,
   MonitoringStatus,
   MonitoringStatusRaw,
   MonthStatistics,
@@ -16,6 +18,7 @@ export interface MonitoringEndpoints {
   "traffic-statistics": TrafficStats;
   month_statistics: MonthStatistics;
   start_date: DataPlan;
+  "check-notifications": DeviceNotifications;
 }
 
 /** Raw wire fields (parser returns strings — see parseTagValue: false). */
@@ -24,6 +27,7 @@ export interface MonitoringEndpointsRaw {
   "traffic-statistics": TrafficStatsRaw;
   month_statistics: MonthStatisticsRaw;
   start_date: DataPlanRaw;
+  "check-notifications": DeviceNotificationsRaw;
 }
 
 // Numeric fields of /api/monitoring/status (per types/monitoring.ts).
@@ -107,6 +111,10 @@ const COERCION: Record<
       "turnoffdataswitch",
       "turnoffdataflag",
     ]),
+  },
+  "check-notifications": {
+    numeric: new Set(["UnreadMessage", "OnlineUpdateStatus", "SimOperEvent"]),
+    flags: new Set(["SmsStorageFull"]),
   },
 };
 

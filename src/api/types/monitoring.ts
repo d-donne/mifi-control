@@ -66,3 +66,18 @@ export interface MonitoringStatus {
  * New fields default to string and are typed when first used.
  */
 export type MonitoringStatusRaw = Record<string, string>;
+
+/**
+ * GET /api/monitoring/check-notifications — a cheap change detector
+ * (p-docs/webui-endpoints.md).
+ */
+export interface DeviceNotifications {
+  UnreadMessage: number;
+  /** 1 when the SMS store is full and new texts can't arrive. */
+  SmsStorageFull: 0 | 1;
+  OnlineUpdateStatus: number;
+  SimOperEvent: number;
+  [key: string]: unknown;
+}
+
+export type DeviceNotificationsRaw = Record<string, string>;

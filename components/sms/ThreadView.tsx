@@ -9,14 +9,14 @@ import {
   formatClockTime,
   formatDayLabel,
   formatFullDateTime,
-  parseDeviceDate,
 } from "@/src/api/utils/date";
 import { useAllSms } from "@/src/hooks/useAllSms";
 import { useAppColors } from "@/src/hooks/useAppColors";
+import { useMarkRead } from "@/src/hooks/useSmsActions";
 import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
 import { ChevronLeft } from "lucide-react-native";
-import { memo, useCallback, useMemo } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import { RefreshControl } from "react-native";
 import SenderAvatar from "./SenderAvatar";
 import { isOutgoing, threadMessages } from "./threads";
@@ -38,22 +38,19 @@ type ThreadItem = { type: "day"; key: string; label: string } | MessageItem;
 function buildItems(messages: SmsMessage[]): ThreadItem[] {
   const items: ThreadItem[] = [];
   let previous: SmsMessage | null = null;
+  let previousDay: string | null = null;
   for (const message of messages) {
-    const day = message.Date.slice(0, 10);
-    const newDay = previous === null || previous.Date.slice(0, 10) !== day;
+    const day = new Date(message.time).toDateString();
+    const newDay = day !== previousDay;
     if (newDay) {
       items.push({
         type: "day",
         key: `day-${day}`,
-        label: formatDayLabel(message.Date),
+        label: formatDayLabel(message.time),
       });
     }
     const outgoing = isOutgoing(message);
-    const gap =
-      previous === null
-        ? Infinity
-        : (parseDeviceDate(message.Date)?.getTime() ?? 0) -
-          (parseDeviceDate(previous.Date)?.getTime() ?? 0);
+    const gap = previous === null ? Infinity : message.time - previous.time;
     items.push({
       type: "message",
       key: String(message.Index),
@@ -66,6 +63,7 @@ function buildItems(messages: SmsMessage[]): ThreadItem[] {
         gap < GROUP_GAP_MS,
     });
     previous = message;
+    previousDay = day;
   }
   return items;
 }
@@ -103,7 +101,7 @@ const MessageBubble = memo(function MessageBubble({
     >
       <VStack
         accessible
-        accessibilityLabel={`${outgoing ? "Sent" : "Received"} ${formatFullDateTime(message.Date)}: ${content || "message still arriving"}${status ? `. ${status}` : ""}`}
+        accessibilityLabel={`${outgoing ? "Sent" : "Received"} ${formatFullDateTime(message.time)}: ${content || "message still arriving"}${status ? `. ${status}` : ""}`}
         className={
           outgoing
             ? "max-w-[80%] rounded-2xl rounded-br-md bg-primary px-3.5 py-2"
@@ -139,7 +137,7 @@ const MessageBubble = memo(function MessageBubble({
               : "mt-1 self-end text-[11px] text-muted-foreground"
           }
         >
-          {formatClockTime(message.Date)}
+          {formatClockTime(message.time)}
         </Text>
       </VStack>
       {status && (
@@ -205,6 +203,19 @@ export default function ThreadView({ phone }: { phone: string }) {
     [all.data, phone],
   );
   const items = useMemo(() => buildItems(messages), [messages]);
+
+  const { mutate: markRead } = useMarkRead();
+  const requestedRead = useRef(new Set<number>());
+  useEffect(() => {
+    const unread = messages
+      .filter(
+        (m) => m.Smstat === Smstat.NEW && !requestedRead.current.has(m.Index),
+      )
+      .map((m) => m.Index);
+    if (unread.length === 0) return;
+    for (const index of unread) requestedRead.current.add(index);
+    markRead(unread);
+  }, [messages, markRead]);
 
   const renderItem = useCallback(
     ({ item }: { item: ThreadItem }) =>

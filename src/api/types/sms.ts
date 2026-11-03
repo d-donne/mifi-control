@@ -57,7 +57,10 @@ export interface SmsMessage {
   Smstat: number;
   Phone: string;
   Content: string;
+  /** Raw device stamp; see `smsTime` for its clock. */
   Date: string;
+  /** Epoch ms corrected for the device clock; 0 when `Date` is unparseable. */
+  time: number;
   Sca: string;
   SaveType: number;
   Priority: number;

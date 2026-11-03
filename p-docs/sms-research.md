@@ -26,8 +26,8 @@ Target device: Huawei E5576-320, firmware `11.0.1.1(H697SP11C00)`. Sources: `Sal
 1. **`sms-list` is POST with a body**, not GET (`postGet` in Salamek = POST on the wire, parsed as a data response). A GET will fail. Our `request<T>(path, { method: "POST", bodyObj })` covers it.
 2. **Field order is significant.** Salamek uses `OrderedDict` with the comment "at least the B525s-23a is order sensitive": `PageIndex → ReadCount → BoxType → SortType → Ascending → UnreadPreferred`. `fast-xml-builder` preserves JS insertion order, so build `bodyObj` literally in that order; no spread/merge that could reorder.
 3. **Single-message normalization.** One-message inboxes come back as `Messages.Message` = single object (or `Messages` missing). Salamek's `enforce_list_response` coerces dict → `[dict]`. We must do the same or the list crashes on a 1-message inbox.
-4. **Date format: `"YYYY-MM-DD HH:MM:SS"`** (naive-local; device clock is its own tz). Parse with a matching format, display via existing `formatRelativeTime` util.
-5. **Multipart youth guard.** Salamek skips `MULTIPART` messages < 10s old (comment says 60s, code says 10s — trust the code) so the device can reassemble parts. Filter client-side on `Date`.
+4. **Date format: `"YYYY-MM-DD HH:MM:SS"`, no zone.** Received messages are UTC+5:30 wall-clock time on this device; sent ones carry the sending app's clock. See [the 2026-11-03 addendum](#addendum-2026-11-03-sms-clock-offset).
+5. **Multipart youth guard.** Salamek skips `MULTIPART` messages < 10s old (comment says 60s, code says 10s — trust the code) so the device can reassemble parts. Filter client-side on the corrected time, never the raw `Date`.
 6. **Send defaults:** `Index: -1`, `Sca: ''`, `Length: message.length` (JS string length), `Reserved: 1` (SEVEN_BIT), `Date: now` formatted as above.
 
 ## Enums (verbatim values, `enums/sms.py`)
@@ -91,3 +91,26 @@ Known issues, to fix in the SMS iteration:
 
 - `check-notifications`: `UnreadMessage` → tab badge + notifier trigger; `SmsStorageFull=1` → warning (a full store stops receiving SMS). Shapes in [`webui-endpoints.md`](./webui-endpoints.md).
 - Mark read on open (`setSmsRead`), delete (`deleteSms`), compose/reply (`sendSms`, send defaults above). Use long-press menus, not swipe actions — the tab pager owns horizontal swipes.
+
+## Addendum (2026-11-03): SMS clock offset
+
+**Finding.** Received SMS are stored **5 h 30 min ahead** of real time (UTC+5:30 wall clock; Ghana is UTC+0).
+
+- Measured on the 460 cached messages, read through the Metro debugger (no device requests). 71 MobileMoney messages state their transaction time (`… at 2025-07-06 16:40:57`); every one was stored exactly +330 min later, July 2025 → November 2026.
+- Ecobank agrees once its 12-hour clock without am/pm is read: `Date: 03-01-2026 09:02` (pm) stored `2026-01-04 02:32:47`.
+- Whether the MiFi or the SMSC adds the offset can't be told from the API (no clock endpoints, see `PROJECT.md` Device facts). It has been constant for 16 months.
+- Sent messages carry the clock of the app that sent them (`sendSms` stamps the phone's local time).
+- Hermes check (Lead 2): offset 0, `Africa/Accra`, `"2026-07-15T13:00:00"` → 13:00. Local vs UTC parsing gives the same instant here, so it wasn't a cause.
+
+**Effects before the fix.**
+
+- Replies interleaved up to 5.5 h out of place in conversations; messages after 18:30 got the next day's label.
+- **The multipart guard hid new long messages for ~5.5 h** (`now - t < 10 s` stays true while the stamp is in the future). 382 of 460 messages are multipart (all MoMo and bank alerts), so they also didn't notify.
+
+**Fix.** `normalizeSmsMessage` adds `time` (epoch ms): received (`Smstat` 0/1) = stamp read as UTC − 330 min, sent = stamp read as local time; 0 when unparseable. Sorting, grouping, day separators, the multipart guard and every formatter use `time`; `Date` stays raw (the API only needs `Index`). Verified live: MoMo `time` matches the stated time within 1 s.
+
+**Open.**
+
+- The offset is a constant (`RECEIVED_UTC_OFFSET_MIN` in `routes/sms.ts`). If it ever changes (firmware reset, other SIM), self-calibrate: when a poll shows a new message, `stamp − now` rounded to 15 min is the offset; persist it.
+- Optional: one send (costs credit) to confirm the device keeps our `Date` for sent messages.
+- One received multipart part (`+233245193550`, 2026-09-03) has had empty content since September, so it shows "Message still arriving…" forever.

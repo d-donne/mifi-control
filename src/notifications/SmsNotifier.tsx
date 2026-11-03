@@ -1,5 +1,5 @@
 import { groupThreads } from "@/components/sms/threads";
-import { useAllSms } from "@/src/hooks/useAllSms";
+import { useAllSms, useSmsHeartbeat } from "@/src/hooks/useAllSms";
 import * as Notifications from "expo-notifications";
 import { useRouter } from "expo-router";
 import { useEffect, useRef } from "react";
@@ -12,6 +12,7 @@ import {
 export function SmsNotifier() {
   const router = useRouter();
   const all = useAllSms();
+  useSmsHeartbeat();
   const seenRef = useRef<Set<number> | null>(null);
 
   useEffect(() => {
@@ -20,15 +21,20 @@ export function SmsNotifier() {
   }, []);
 
   useEffect(() => {
-    const messages = all.data?.messages;
-    if (!messages) return;
+    const data = all.data;
+    if (!data) return;
     if (seenRef.current === null) {
-      seenRef.current = new Set(messages.map((m) => m.Index));
+      // A partial first fetch would leave older unread messages unseen and
+      // notify them once the rest loads.
+      if (data.error) return;
+      seenRef.current = new Set(data.messages.map((m) => m.Index));
       return;
     }
     const seen = seenRef.current;
-    const fresh = messages.filter((m) => m.Smstat === 0 && !seen.has(m.Index));
-    seenRef.current = new Set(messages.map((m) => m.Index));
+    const fresh = data.messages.filter(
+      (m) => m.Smstat === 0 && !seen.has(m.Index),
+    );
+    for (const m of data.messages) seen.add(m.Index);
     if (fresh.length === 0) return;
 
     for (const thread of [...groupThreads(fresh)].reverse()) {
@@ -40,17 +46,21 @@ export function SmsNotifier() {
     }
   }, [all.data]);
 
+  const response = Notifications.useLastNotificationResponse();
   useEffect(() => {
-    const sub = Notifications.addNotificationResponseReceivedListener(
-      (response) => {
-        const phone = response.notification.request.content.data?.phone;
-        if (typeof phone === "string" && phone.length > 0) {
-          router.push({ pathname: "/conversation/[phone]", params: { phone } });
-        }
-      },
-    );
-    return () => sub.remove();
-  }, [router]);
+    if (
+      !response ||
+      response.actionIdentifier !== Notifications.DEFAULT_ACTION_IDENTIFIER
+    ) {
+      return;
+    }
+    const phone = response.notification.request.content.data?.phone;
+    // Cleared so a remount (sign out and back in) doesn't reopen it.
+    Notifications.clearLastNotificationResponse();
+    if (typeof phone === "string" && phone.length > 0) {
+      router.push({ pathname: "/conversation/[phone]", params: { phone } });
+    }
+  }, [response, router]);
 
   return null;
 }

@@ -55,16 +55,9 @@ export function getGreeting(date = new Date()) {
   return "Good night";
 }
 
-/**
- * Full datetime for SMS display. Device dates arrive as
- * "YYYY-MM-DD HH:MM:SS" (naive device-local). Rendered as
- * "13 Sep 2026, 14:32" so timestamps are unambiguous in-thread.
- */
-export function formatFullDateTime(input: string): string {
-  // "YYYY-MM-DD HH:MM:SS" → ISO local form; parsed as local time.
-  const date = new Date(input.replace(" ", "T"));
-  if (Number.isNaN(date.getTime())) return input;
-
+/** "13 Sep 2026, 14:32" */
+export function formatFullDateTime(time: number): string {
+  if (!time) return "";
   return new Intl.DateTimeFormat("en", {
     day: "numeric",
     month: "short",
@@ -72,7 +65,7 @@ export function formatFullDateTime(input: string): string {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
-  }).format(date);
+  }).format(time);
 }
 
 /** Seconds → "2d 4h", "6h 12m", "8m", "45s". */
@@ -87,12 +80,6 @@ export function formatDuration(totalSeconds: number): string {
   return `${s}s`;
 }
 
-/** Device dates are naive device-local "YYYY-MM-DD HH:MM:SS". */
-export function parseDeviceDate(input: string): Date | null {
-  const date = new Date(input.replace(" ", "T"));
-  return Number.isNaN(date.getTime()) ? null : date;
-}
-
 function daysBefore(date: Date, now: Date): number {
   const day = new Date(date.getFullYear(), date.getMonth(), date.getDate());
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -100,22 +87,21 @@ function daysBefore(date: Date, now: Date): number {
 }
 
 /** "14:32" */
-export function formatClockTime(input: string): string {
-  const date = parseDeviceDate(input);
-  if (!date) return "";
+export function formatClockTime(time: number): string {
+  if (!time) return "";
   return new Intl.DateTimeFormat("en", {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
-  }).format(date);
+  }).format(time);
 }
 
 /** Inbox timestamp: "14:32", "Yesterday", "Mon", "12 Sep", "12 Sep 2025". */
-export function formatListTime(input: string, now = new Date()): string {
-  const date = parseDeviceDate(input);
-  if (!date) return "";
+export function formatListTime(time: number, now = new Date()): string {
+  if (!time) return "";
+  const date = new Date(time);
   const days = daysBefore(date, now);
-  if (days <= 0) return formatClockTime(input);
+  if (days <= 0) return formatClockTime(time);
   if (days === 1) return "Yesterday";
   if (days < 7) {
     return new Intl.DateTimeFormat("en", { weekday: "short" }).format(date);
@@ -128,9 +114,9 @@ export function formatListTime(input: string, now = new Date()): string {
 }
 
 /** Day separator: "Today", "Yesterday", "Monday", "12 September 2025". */
-export function formatDayLabel(input: string, now = new Date()): string {
-  const date = parseDeviceDate(input);
-  if (!date) return "";
+export function formatDayLabel(time: number, now = new Date()): string {
+  if (!time) return "";
+  const date = new Date(time);
   const days = daysBefore(date, now);
   if (days <= 0) return "Today";
   if (days === 1) return "Yesterday";
