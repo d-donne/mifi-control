@@ -1,6 +1,6 @@
 import XMLBuilder from "fast-xml-builder";
 import { XMLParser } from "fast-xml-parser";
-import { REFERER } from "./constants";
+import { REFERER_PATH } from "./constants";
 import {
   LOGIN_ALREADY_LOGGED_IN_CODES,
   LOGIN_LOCKOUT_CODES,
@@ -57,6 +57,7 @@ function extractLoginTokenPool(res: XhrResponse): string[] {
 
 export class HiLinkClient {
   private readonly baseUrl: string;
+  private readonly referer: string;
   private readonly username: string;
   private readonly password: string;
 
@@ -85,6 +86,7 @@ export class HiLinkClient {
   // constructor is private to enforce the use of the static connect method
   private constructor(baseUrl: string, username: string, password: string) {
     this.baseUrl = baseUrl.replace(/\/$/, ""); // Remove trailing slash if present
+    this.referer = `${this.baseUrl}${REFERER_PATH}`;
     this.username = username;
     this.password = password;
   }
@@ -111,13 +113,13 @@ export class HiLinkClient {
     if (this.cookie) {
       try {
         const res = await xhrRequest(`${this.baseUrl}/api/user/state-login`, {
-          headers: { Cookie: this.cookie, Referer: REFERER },
+          headers: { Cookie: this.cookie, Referer: this.referer },
         });
         if (res.ok) {
           const data = this.parser.parse(
             await res.text(),
           ) as StateLoginResponse;
-          if (data?.response && String(data.response.State) === "0") {
+          if (data?.response && data.response.State === "0") {
             return;
           }
         }
@@ -191,7 +193,7 @@ export class HiLinkClient {
         "Content-Type": "text/xml; charset=UTF-8",
         Cookie: this.cookie,
         __RequestVerificationToken: firstToken,
-        Referer: REFERER,
+        Referer: this.referer,
       },
       body: this.builder.build({
         request: {
@@ -408,7 +410,7 @@ export class HiLinkClient {
     const headers: Record<string, string> = {
       "Content-Type": "text/xml; charset=UTF-8",
       Cookie: this.cookie,
-      Referer: REFERER,
+      Referer: this.referer,
     };
     if (attach && token) headers.__RequestVerificationToken = token;
 
@@ -444,7 +446,7 @@ export class HiLinkClient {
         parsed.error.code,
       );
     }
-    return parsed as T;
+    return parsed;
   }
 
   /**

@@ -27,7 +27,9 @@ export function flag(v: unknown): 0 | 1 {
   return num(v) === 1 ? 1 : 0;
 }
 
-/** Coerce a wire value to string (undefined/null → ""). */
+/** Coerce a wire value to string (anything but string/number/boolean → ""). */
 export function str(v: unknown): string {
-  return typeof v === "string" ? v : String(v ?? "");
+  if (typeof v === "string") return v;
+  if (typeof v === "number" || typeof v === "boolean") return String(v);
+  return "";
 }

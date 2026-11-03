@@ -69,8 +69,8 @@ const TRAFFIC_NUMERIC = new Set([
 // 0|1 flag fields of /api/monitoring/traffic-statistics.
 const TRAFFIC_FLAG = new Set(["showtraffic"]);
 
-function coerceFields<TRaw extends Record<string, string>>(
-  raw: TRaw,
+function coerceFields(
+  raw: Record<string, string>,
   numeric: Set<string>,
   flags: Set<string>,
 ): Record<string, unknown> {
@@ -106,5 +106,7 @@ export async function getMonitoring<K extends keyof MonitoringEndpoints>(
         TRAFFIC_NUMERIC,
         TRAFFIC_FLAG,
       ) as MonitoringEndpoints[K];
+    default:
+      throw new Error(`Unsupported monitoring endpoint: ${endpoint}`);
   }
 }

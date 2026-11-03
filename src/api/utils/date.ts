@@ -2,7 +2,7 @@ export function formatRelativeTime(input: Date | number | string) {
   const date = new Date(input);
   const timestamp = date.getTime();
 
-  if (Number.isNaN(timestamp)) return;
+  if (Number.isNaN(timestamp)) return undefined;
 
   const diff = timestamp - Date.now();
   const seconds = Math.round(diff / 1000);

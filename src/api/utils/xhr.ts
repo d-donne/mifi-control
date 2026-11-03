@@ -41,16 +41,16 @@ export function xhrRequest(
           get: (name: string) => {
             const target = name.toLowerCase();
 
-            const line = rawHeaders.split(/\r?\n/).find((line) => {
+            const match = rawHeaders.split(/\r?\n/).find((line) => {
               const separator = line.indexOf(":");
               if (separator === -1) return false;
 
               return line.slice(0, separator).trim().toLowerCase() === target;
             });
 
-            if (!line) return null;
+            if (!match) return null;
 
-            return line.slice(line.indexOf(":") + 1).trim();
+            return match.slice(match.indexOf(":") + 1).trim();
           },
         },
       });
