@@ -24,6 +24,9 @@ export const LOGIN_WRONG_CREDENTIALS_CODES = new Set<string>([
 
 export const LOGIN_LOCKOUT_CODES = new Set<string>(["108007"]);
 
+/** 115002: the device refuses login until its admin password is changed. */
+export const LOGIN_PASSWORD_CHANGE_CODES = new Set<string>(["115002"]);
+
 export const LOGIN_ALREADY_LOGGED_IN_CODES = new Set<string>(["108003"]);
 
 /**
@@ -38,6 +41,25 @@ export const TOKEN_ERROR_CODES = new Set<string>([
   "125003",
 ]);
 
+/** Client-side codes for HiLinkErrors that don't come from the device. */
+export const NETWORK_ERROR_CODE = "NETWORK";
+export const SESSION_CLOSED_CODE = "SESSION_CLOSED";
+
 export function isErrorResponse(x: unknown): x is DeviceErrorResponse {
   return typeof x === "object" && x !== null && "error" in x;
+}
+
+/**
+ * The device refused the login (wrong user/password, lockout, or a forced
+ * password change). Every further login attempt counts toward the
+ * device's lockout, so these must never be retried automatically.
+ */
+export function isLoginRejection(e: unknown): e is HiLinkError {
+  if (!(e instanceof HiLinkError) || e.code === undefined) return false;
+  const code = String(e.code);
+  return (
+    LOGIN_WRONG_CREDENTIALS_CODES.has(code) ||
+    LOGIN_LOCKOUT_CODES.has(code) ||
+    LOGIN_PASSWORD_CHANGE_CODES.has(code)
+  );
 }

@@ -4,9 +4,13 @@ import { REFERER_PATH } from "./constants";
 import {
   LOGIN_ALREADY_LOGGED_IN_CODES,
   LOGIN_LOCKOUT_CODES,
+  LOGIN_PASSWORD_CHANGE_CODES,
   LOGIN_WRONG_CREDENTIALS_CODES,
   HiLinkError,
   isErrorResponse,
+  isLoginRejection,
+  NETWORK_ERROR_CODE,
+  SESSION_CLOSED_CODE,
   TOKEN_ERROR_CODES,
 } from "./errors";
 import type {
@@ -55,6 +59,10 @@ function extractLoginTokenPool(res: XhrResponse): string[] {
   return full ? full.split("#").filter(Boolean) : [];
 }
 
+function sessionClosedError(): HiLinkError {
+  return new HiLinkError("Session closed", SESSION_CLOSED_CODE);
+}
+
 export class HiLinkClient {
   private readonly baseUrl: string;
   private readonly referer: string;
@@ -71,6 +79,18 @@ export class HiLinkClient {
    * Cleared (finally) when the login settles.
    */
   private loginInFlight: Promise<void> | null = null;
+
+  /**
+   * Set once the device rejects these credentials (108001/2/6) or starts
+   * throttling (108007). The E5576 counts every failed login toward a
+   * lockout, so after a rejection this client never logs in again —
+   * otherwise each poll's token error would burn another attempt.
+   */
+  private loginRejection: HiLinkError | null = null;
+  private loginRejectionListener: ((e: HiLinkError) => void) | null = null;
+
+  /** Set by close(): no further requests or logins from this client. */
+  private closed = false;
 
   private readonly parser = new XMLParser({
     ignoreAttributes: false,
@@ -99,6 +119,22 @@ export class HiLinkClient {
     const client = new HiLinkClient(baseUrl, username, password);
     await client.ensureLoggedIn();
     return client;
+  }
+
+  /**
+   * Whether a HiLink device answers at `baseUrl`. Uses the unauthenticated
+   * `user/state-login`, so it never spends a login attempt.
+   */
+  static async isReachable(baseUrl: string): Promise<boolean> {
+    try {
+      const res = await xhrRequest(
+        `${baseUrl.replace(/\/$/, "")}/api/user/state-login`,
+        { timeoutMs: 4_000 },
+      );
+      return res.ok && /<State>/.test(await res.text());
+    } catch {
+      return false;
+    }
   }
 
   /**
@@ -135,12 +171,64 @@ export class HiLinkClient {
    * the one in-flight login; all resume when it settles.
    */
   private loginOnce(): Promise<void> {
+    if (this.closed) return Promise.reject(sessionClosedError());
+    if (this.loginRejection) return Promise.reject(this.loginRejection);
     if (!this.loginInFlight) {
-      this.loginInFlight = this.triggerLogin().finally(() => {
-        this.loginInFlight = null;
-      });
+      this.loginInFlight = this.triggerLogin()
+        .catch((e: unknown) => {
+          if (isLoginRejection(e)) {
+            this.loginRejection = e;
+            this.loginRejectionListener?.(e);
+          }
+          throw e;
+        })
+        .finally(() => {
+          this.loginInFlight = null;
+        });
     }
     return this.loginInFlight;
+  }
+
+  /**
+   * Called once if the device rejects a mid-session re-login (password
+   * changed on the device, or lockout). The client is unusable afterwards.
+   */
+  onLoginRejected(listener: (e: HiLinkError) => void): void {
+    this.loginRejectionListener = listener;
+  }
+
+  /**
+   * Stops this client: in-flight polls fail with SESSION_CLOSED instead of
+   * re-logging in. The device allows one session, so a replaced client
+   * must never log in again.
+   */
+  close(): void {
+    this.closed = true;
+    this.loginRejectionListener = null;
+  }
+
+  /**
+   * Best-effort `POST user/logout` (Salamek closes sessions this way), then
+   * close(). Never logs in just to log out: skipped when there's no live
+   * session or token to use.
+   */
+  async logout(): Promise<void> {
+    const hasSession =
+      !this.closed &&
+      !this.loginRejection &&
+      this.cookie !== null &&
+      this.tokenPool.length > 0;
+    this.close();
+    if (!hasSession) return;
+    try {
+      await this.request(
+        "/api/user/logout",
+        { method: "POST", bodyObj: { Logout: 1 } },
+        true,
+      );
+    } catch {
+      // The device expires abandoned sessions on its own.
+    }
   }
 
   /**
@@ -224,6 +312,11 @@ export class HiLinkClient {
           `Login failed: device is throttling login attempts (code ${code}) — wait a few minutes before retrying.`,
           loginBody.error.code,
         );
+      } else if (LOGIN_PASSWORD_CHANGE_CODES.has(code)) {
+        throw new HiLinkError(
+          `Login failed: device requires its admin password to be changed first (code ${code}).`,
+          loginBody.error.code,
+        );
       } else {
         throw new HiLinkError(
           `Login failed: ${loginBody.error.message ?? `code ${code}`}`,
@@ -301,6 +394,7 @@ export class HiLinkClient {
     } catch (e) {
       throw new HiLinkError(
         `Couldn't reach MiFi at ${this.baseUrl} — are you connected to its Wi-Fi? (${String(e)})`,
+        NETWORK_ERROR_CODE,
       );
     }
 
@@ -463,6 +557,7 @@ export class HiLinkClient {
       bodyObj?: Record<string, unknown>;
     } = {},
   ): Promise<T> {
+    if (this.closed) return Promise.reject(sessionClosedError());
     return this.request<T>(path, opts);
   }
 }

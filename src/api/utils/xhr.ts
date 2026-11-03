@@ -19,12 +19,14 @@ export function xhrRequest(
     method?: string;
     headers?: Record<string, string>;
     body?: string;
+    timeoutMs?: number;
   } = {},
 ): Promise<XhrResponse> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
 
     xhr.open(opts.method ?? "GET", url, true);
+    xhr.timeout = opts.timeoutMs ?? 10_000;
 
     for (const [key, value] of Object.entries(opts.headers ?? {})) {
       xhr.setRequestHeader(key, value);
