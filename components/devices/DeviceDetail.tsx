@@ -10,6 +10,7 @@ import { formatDuration } from "@/src/api/utils";
 import { useAppColors } from "@/src/hooks/useAppColors";
 import {
   useBlockDevice,
+  useForgetDevice,
   useMacFilter,
   useRenameDevice,
   useUnblockDevice,
@@ -17,7 +18,8 @@ import {
 import { useLanHosts } from "@/src/hooks/useLanHosts";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { ActivityIndicator, Alert, ScrollView, View } from "react-native";
+import { ActivityIndicator, ScrollView, View } from "react-native";
+import ConfirmDialog from "../common/ConfirmDialog";
 import { displayName, DeviceIcon, isMacLike, isUnnamed } from "./hostDisplay";
 
 function InfoRow({ label, value }: { label: string; value: string }) {
@@ -225,20 +227,7 @@ function BlockAction({ host, blocked }: { host: LanHost; blocked: boolean }) {
   const error = block.error ?? unblock.error;
   const name = displayName(host);
 
-  function confirmBlock() {
-    Alert.alert(
-      `Block ${name}?`,
-      "It will be disconnected and can't rejoin the Wi-Fi until you unblock it.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Block",
-          style: "destructive",
-          onPress: () => block.mutate(host),
-        },
-      ],
-    );
-  }
+  const [confirming, setConfirming] = useState(false);
 
   return (
     <VStack space="sm">
@@ -258,7 +247,7 @@ function BlockAction({ host, blocked }: { host: LanHost; blocked: boolean }) {
           variant="destructive"
           size="lg"
           className="rounded-full"
-          onPress={confirmBlock}
+          onPress={() => setConfirming(true)}
           isDisabled={pending}
         >
           {pending && <ButtonSpinner color="white" />}
@@ -270,6 +259,52 @@ function BlockAction({ host, blocked }: { host: LanHost; blocked: boolean }) {
           {error.message}
         </Text>
       )}
+      <ConfirmDialog
+        isOpen={confirming}
+        onClose={() => setConfirming(false)}
+        title={`Block ${name}?`}
+        message="It will be disconnected and can't rejoin the Wi-Fi until you unblock it."
+        confirmLabel="Block"
+        onConfirm={() => block.mutate(host)}
+      />
+    </VStack>
+  );
+}
+
+function ForgetAction({ host }: { host: LanHost }) {
+  const router = useRouter();
+  const forget = useForgetDevice();
+
+  const [confirming, setConfirming] = useState(false);
+
+  return (
+    <VStack space="sm">
+      <Button
+        variant="ghost"
+        size="lg"
+        className="rounded-full"
+        onPress={() => setConfirming(true)}
+        isDisabled={forget.isPending}
+      >
+        {forget.isPending && <ButtonSpinner />}
+        <ButtonText>Remove from list</ButtonText>
+      </Button>
+      {forget.error && (
+        <Text className="text-center text-sm text-destructive">
+          {forget.error.message}
+        </Text>
+      )}
+      <ConfirmDialog
+        isOpen={confirming}
+        onClose={() => setConfirming(false)}
+        title={`Remove ${displayName(host)}?`}
+        message="It disappears from the device list. It isn't blocked, and shows up again if it reconnects."
+        confirmLabel="Remove"
+        onConfirm={() => {
+          forget.mutate(host);
+          router.back();
+        }}
+      />
     </VStack>
   );
 }
@@ -302,6 +337,9 @@ export default function DeviceDetail({ mac }: { mac: string }) {
             <DeviceInfo host={host} />
             {host.isLocalDevice !== 1 && (
               <BlockAction host={host} blocked={blocked} />
+            )}
+            {host.Active === 0 && host.isLocalDevice !== 1 && (
+              <ForgetAction host={host} />
             )}
           </>
         ) : hosts.isPending ? (

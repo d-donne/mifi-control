@@ -1,3 +1,4 @@
+import { HiLinkError } from "../errors";
 import type { HiLinkClient } from "../main";
 import type { LanHost, LanHostRaw, RawHostInfoResponse } from "../types";
 import { decodeHtmlEntities, flag, num, str } from "../utils";
@@ -37,6 +38,19 @@ export async function renameDevice(
   await client.requestAs("/api/lan/changedevicename", {
     method: "POST",
     bodyObj: { ID: id, ActualName: name },
+  });
+}
+
+/** Removes a disconnected device from the MiFi's history, as the web UI's delete button does. */
+export async function forgetDevice(
+  client: HiLinkClient,
+  host: LanHost,
+): Promise<void> {
+  if (host.Active === 1)
+    throw new HiLinkError("Only devices that aren't connected can be removed.");
+  await client.requestAs("/api/lan/HostInfo", {
+    method: "POST",
+    bodyObj: { ID: 0, MacAddress: host.MacAddress },
   });
 }
 
