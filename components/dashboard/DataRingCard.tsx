@@ -1,8 +1,10 @@
 import { getProgress } from "@/components/common/CircularProgress";
+import { Pressable } from "@/components/ui/pressable";
 import { Text } from "@/components/ui/text";
 import { formatBytes, parseDataLimit } from "@/src/api/utils";
 import { useAppColors } from "@/src/hooks/useAppColors";
 import { useDataPlan, useMonthStatistics } from "@/src/hooks/useDataUsage";
+import { useRouter } from "expo-router";
 import StatRingCard from "./StatRingCard";
 
 /**
@@ -12,6 +14,7 @@ import StatRingCard from "./StatRingCard";
  */
 export default function DataRingCard() {
   const colors = useAppColors();
+  const router = useRouter();
   const { data: month } = useMonthStatistics();
   const { data: plan } = useDataPlan();
 
@@ -33,21 +36,27 @@ export default function DataRingCard() {
         : colors.dataRing;
 
   return (
-    <StatRingCard
-      progress={capBytes ? getProgress(used, capBytes) : 0}
-      activeColor={activeColor}
-      trackColor={colors.dataRingTrack}
-      primary={month ? formatBytes(used) : "—"}
-      secondary={
-        capBytes && limit ? `of ${limit.amount} ${limit.unit}` : "this month"
-      }
-      overlay={
-        month && (
-          <Text className="text-[10px] text-muted-foreground">
-            {formatBytes(month.CurrentDayUsed)} today
-          </Text>
-        )
-      }
-    />
+    <Pressable
+      onPress={() => router.push("/data-plan")}
+      accessibilityRole="button"
+      accessibilityLabel="Edit data plan"
+    >
+      <StatRingCard
+        progress={capBytes ? getProgress(used, capBytes) : 0}
+        activeColor={activeColor}
+        trackColor={colors.dataRingTrack}
+        primary={month ? formatBytes(used) : "—"}
+        secondary={
+          capBytes && limit ? `of ${limit.amount} ${limit.unit}` : "this month"
+        }
+        overlay={
+          month && (
+            <Text className="text-[10px] text-muted-foreground">
+              {formatBytes(month.CurrentDayUsed)} today
+            </Text>
+          )
+        }
+      />
+    </Pressable>
   );
 }

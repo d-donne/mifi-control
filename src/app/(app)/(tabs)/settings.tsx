@@ -1,13 +1,17 @@
 import { Button, ButtonText } from "@/components/ui/button";
 import { Heading } from "@/components/ui/heading";
 import { HStack } from "@/components/ui/hstack";
+import { Pressable } from "@/components/ui/pressable";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
 import { getDevice } from "@/src/api/routes";
+import { parseDataLimit } from "@/src/api/utils";
 import { useAppColors } from "@/src/hooks/useAppColors";
+import { useDataPlan } from "@/src/hooks/useDataUsage";
 import { useHiLinkQuery } from "@/src/hooks/useHiLinkQuery";
 import { useSession } from "@/src/hooks/useSession";
-import { LogOut } from "lucide-react-native";
+import { useRouter } from "expo-router";
+import { ChevronRight, LogOut } from "lucide-react-native";
 import type { ReactNode } from "react";
 import { Alert, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -37,8 +41,17 @@ function Row({ label, value }: { label: string; value: string | undefined }) {
   );
 }
 
+function describePlan(plan: ReturnType<typeof useDataPlan>["data"]): string {
+  if (!plan) return "—";
+  const limit = parseDataLimit(plan.DataLimit);
+  if (plan.SetMonthData !== 1 || !limit || limit.amount === 0) return "Not set";
+  return `${limit.amount} ${limit.unit} · resets day ${plan.StartDay}`;
+}
+
 export default function Settings() {
   const colors = useAppColors();
+  const router = useRouter();
+  const { data: plan } = useDataPlan();
   const credentials = useSession((s) => s.credentials);
   const signOut = useSession((s) => s.signOut);
   const { data: device } = useHiLinkQuery({
@@ -74,6 +87,25 @@ export default function Settings() {
             />
             <Row label="Firmware" value={device?.SoftwareVersion} />
             <Row label="IMEI" value={device?.Imei} />
+          </Section>
+
+          <Section title="Usage">
+            <Pressable
+              onPress={() => router.push("/data-plan")}
+              accessibilityRole="button"
+              className="flex-row items-center justify-between py-2"
+            >
+              <Text className="text-sm text-muted-foreground">Data plan</Text>
+              <HStack
+                space="xs"
+                className="ml-4 flex-1 items-center justify-end"
+              >
+                <Text className="text-sm text-foreground" numberOfLines={1}>
+                  {describePlan(plan)}
+                </Text>
+                <ChevronRight size={16} color={colors.mutedForeground} />
+              </HStack>
+            </Pressable>
           </Section>
 
           <Section title="Connection">
