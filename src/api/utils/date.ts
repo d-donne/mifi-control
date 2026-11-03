@@ -86,3 +86,60 @@ export function formatDuration(totalSeconds: number): string {
   if (minutes > 0) return `${minutes}m`;
   return `${s}s`;
 }
+
+/** Device dates are naive device-local "YYYY-MM-DD HH:MM:SS". */
+export function parseDeviceDate(input: string): Date | null {
+  const date = new Date(input.replace(" ", "T"));
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function daysBefore(date: Date, now: Date): number {
+  const day = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((today.getTime() - day.getTime()) / 86_400_000);
+}
+
+/** "14:32" */
+export function formatClockTime(input: string): string {
+  const date = parseDeviceDate(input);
+  if (!date) return "";
+  return new Intl.DateTimeFormat("en", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(date);
+}
+
+/** Inbox timestamp: "14:32", "Yesterday", "Mon", "12 Sep", "12 Sep 2025". */
+export function formatListTime(input: string, now = new Date()): string {
+  const date = parseDeviceDate(input);
+  if (!date) return "";
+  const days = daysBefore(date, now);
+  if (days <= 0) return formatClockTime(input);
+  if (days === 1) return "Yesterday";
+  if (days < 7) {
+    return new Intl.DateTimeFormat("en", { weekday: "short" }).format(date);
+  }
+  return new Intl.DateTimeFormat("en", {
+    day: "numeric",
+    month: "short",
+    year: date.getFullYear() === now.getFullYear() ? undefined : "numeric",
+  }).format(date);
+}
+
+/** Day separator: "Today", "Yesterday", "Monday", "12 September 2025". */
+export function formatDayLabel(input: string, now = new Date()): string {
+  const date = parseDeviceDate(input);
+  if (!date) return "";
+  const days = daysBefore(date, now);
+  if (days <= 0) return "Today";
+  if (days === 1) return "Yesterday";
+  if (days < 7) {
+    return new Intl.DateTimeFormat("en", { weekday: "long" }).format(date);
+  }
+  return new Intl.DateTimeFormat("en", {
+    day: "numeric",
+    month: "long",
+    year: date.getFullYear() === now.getFullYear() ? undefined : "numeric",
+  }).format(date);
+}

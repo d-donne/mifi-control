@@ -33,3 +33,28 @@ export function str(v: unknown): string {
   if (typeof v === "number" || typeof v === "boolean") return String(v);
   return "";
 }
+
+const NAMED_ENTITIES: Record<string, string> = {
+  amp: "&",
+  lt: "<",
+  gt: ">",
+  quot: '"',
+  apos: "'",
+  nbsp: " ",
+};
+
+/**
+ * Decodes HTML character references left in device text — SMS content
+ * arrives with "/" as "&#x2F;" (the web UI decodes these itself).
+ * Single pass, so already-decoded text is left alone.
+ */
+export function decodeHtmlEntities(text: string): string {
+  return text.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (match, ref: string) => {
+    if (ref.startsWith("#")) {
+      const hex = ref[1] === "x" || ref[1] === "X";
+      const code = Number.parseInt(ref.slice(hex ? 2 : 1), hex ? 16 : 10);
+      return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : match;
+    }
+    return NAMED_ENTITIES[ref.toLowerCase()] ?? match;
+  });
+}

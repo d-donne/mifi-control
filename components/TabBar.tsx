@@ -23,6 +23,11 @@ const TAB_META: Record<
   settings: { Icon: SettingsIcon, label: "Settings" },
 };
 
+/** Bottom padding that keeps scrolling content clear of the floating bar. */
+export function useTabBarClearance(): number {
+  return useSafeAreaInsets().bottom + 80;
+}
+
 export default function TabBar({
   state,
   emitter,

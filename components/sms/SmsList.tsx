@@ -1,73 +1,132 @@
+import { useTabBarClearance } from "@/components/TabBar";
 import { Box } from "@/components/ui/box";
 import { Button, ButtonText } from "@/components/ui/button";
-import { Divider } from "@/components/ui/divider";
+import { Heading } from "@/components/ui/heading";
 import { HStack } from "@/components/ui/hstack";
-import { Skeleton, SkeletonText } from "@/components/ui/skeleton";
+import { Input, InputField, InputSlot } from "@/components/ui/input";
+import { Pressable } from "@/components/ui/pressable";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
-import { formatFullDateTime } from "@/src/api/utils/date";
+import { formatListTime } from "@/src/api/utils";
 import { useAllSms } from "@/src/hooks/useAllSms";
+import { useAppColors } from "@/src/hooks/useAppColors";
 import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
+import { MessageSquare, Search, X } from "lucide-react-native";
 import { memo, useCallback, useMemo, useState } from "react";
-import { RefreshControl, TextInput } from "react-native";
-import { filterThreads, groupThreads, type SmsThread } from "./threads";
+import { RefreshControl } from "react-native";
+import SenderAvatar from "./SenderAvatar";
+import {
+  filterThreads,
+  groupThreads,
+  isOutgoing,
+  type SmsThread,
+} from "./threads";
 
-const ThreadSeparator = () => <Divider className="my-1 bg-transparent" />;
-
-const ThreadRowSkeleton = () => (
-  <Box className="rounded-xl border-border bg-card px-4 py-3">
-    <SkeletonText _lines={2} className="h-4" />
-  </Box>
-);
+function previewText(thread: SmsThread): string {
+  const content =
+    thread.lastMessage.Content.trim() || "Message still arriving…";
+  return isOutgoing(thread.lastMessage) ? `You: ${content}` : content;
+}
 
 const ThreadRow = memo(function ThreadRow({ item }: { item: SmsThread }) {
   const router = useRouter();
-  const { lastMessage } = item;
+  const unread = item.unreadCount > 0;
+  const preview = previewText(item);
+
   return (
-    <Button
-      variant="outline"
-      className="justify-start rounded-xl border-border bg-card px-4 py-3"
+    <Pressable
       onPress={() =>
-        router.push({
-          pathname: "/thread/[phone]",
-          params: { phone: item.phone },
-        })
+        router.push({ pathname: "/sms/[phone]", params: { phone: item.phone } })
       }
+      accessibilityRole="button"
+      accessibilityLabel={`${item.phone}${unread ? `, ${item.unreadCount} unread` : ""}. ${preview}`}
+      className="flex-row items-center gap-3 rounded-2xl px-3 py-3 data-[active=true]:bg-card"
     >
-      <HStack space="sm" className="flex-1 items-start">
-        {item.unreadCount > 0 && (
-          <Box className="mt-1.5 h-2 w-2 rounded-full bg-primary" />
-        )}
-        <VStack space="xs" className="flex-1">
-          <HStack className="items-baseline justify-between">
-            <Text className="font-semibold text-foreground">{item.phone}</Text>
-            <Text className="text-xs text-muted-foreground">
-              {formatFullDateTime(lastMessage.Date)}
-            </Text>
-          </HStack>
-          <Text className="text-sm text-muted-foreground" numberOfLines={2}>
-            {lastMessage.Content}
+      <SenderAvatar name={item.phone} />
+      <VStack className="flex-1 gap-0.5">
+        <HStack className="items-baseline gap-2">
+          <Text
+            numberOfLines={1}
+            className={
+              unread
+                ? "flex-1 text-base font-semibold text-foreground"
+                : "flex-1 text-base font-medium text-foreground"
+            }
+          >
+            {item.phone}
           </Text>
-        </VStack>
-        {item.unreadCount > 0 && (
-          <Box className="rounded-full bg-primary px-2 py-0.5">
-            <Text className="text-xs font-semibold text-primary-foreground">
-              {item.unreadCount}
-            </Text>
-          </Box>
-        )}
-      </HStack>
-    </Button>
+          <Text
+            className={
+              unread
+                ? "text-xs font-semibold text-primary"
+                : "text-xs text-muted-foreground"
+            }
+          >
+            {formatListTime(item.lastMessage.Date)}
+          </Text>
+        </HStack>
+        <HStack className="items-start gap-2">
+          <Text
+            numberOfLines={2}
+            className={
+              unread
+                ? "flex-1 text-sm text-foreground"
+                : "flex-1 text-sm text-muted-foreground"
+            }
+          >
+            {preview}
+          </Text>
+          {unread && (
+            <Box className="mt-0.5 h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5">
+              <Text className="text-[11px] font-bold text-primary-foreground">
+                {item.unreadCount > 99 ? "99+" : item.unreadCount}
+              </Text>
+            </Box>
+          )}
+        </HStack>
+      </VStack>
+    </Pressable>
   );
 });
 
+function RowSkeleton() {
+  return (
+    <HStack className="items-center gap-3 px-3 py-3">
+      <Skeleton className="h-11 w-11 rounded-full" />
+      <VStack className="flex-1 gap-2">
+        <Skeleton className="h-4 w-2/5 rounded-md" />
+        <Skeleton className="h-3.5 w-4/5 rounded-md" />
+      </VStack>
+    </HStack>
+  );
+}
+
+function EmptyState({ search }: { search: string }) {
+  const colors = useAppColors();
+  return (
+    <VStack className="items-center gap-2 px-8 pt-16">
+      <MessageSquare size={28} color={colors.mutedForeground} />
+      <Text className="text-center font-medium text-foreground">
+        {search ? `Nothing matches “${search}”` : "No messages yet"}
+      </Text>
+      <Text className="text-center text-sm text-muted-foreground">
+        {search
+          ? "Search looks at sender names, numbers and message text."
+          : "Texts sent to the SIM in your MiFi show up here."}
+      </Text>
+    </VStack>
+  );
+}
+
 export default function SmsList() {
+  const colors = useAppColors();
+  const clearance = useTabBarClearance();
   const [search, setSearch] = useState("");
 
   const all = useAllSms();
   const partialError = all.data?.error;
-  const error = all.error;
 
   const threads = useMemo(
     () => groupThreads(all.data?.messages ?? []),
@@ -77,80 +136,104 @@ export default function SmsList() {
     () => filterThreads(threads, search),
     [threads, search],
   );
+  const unreadTotal = useMemo(
+    () => threads.reduce((sum, t) => sum + t.unreadCount, 0),
+    [threads],
+  );
 
   const renderItem = useCallback(
     ({ item }: { item: SmsThread }) => <ThreadRow item={item} />,
     [],
   );
 
-  if (all.isPending) {
-    return (
-      <VStack className="flex-1 px-4 pt-2">
-        <Skeleton className="mt-2 h-11 rounded-full" />
-        <VStack space="sm" className="mt-1">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <ThreadRowSkeleton key={i} />
-          ))}
-        </VStack>
-      </VStack>
-    );
-  }
-
-  if (error && threads.length === 0) {
-    return (
-      <VStack space="md" className="flex-1 items-center justify-center px-8">
-        <Text className="text-center text-sm text-destructive">
-          Couldn&apos;t load messages: {String(error)}
-        </Text>
-        <Button variant="outline" onPress={() => all.refetch()}>
-          <ButtonText>Retry</ButtonText>
-        </Button>
-      </VStack>
-    );
-  }
+  const summary = all.data
+    ? `${threads.length} conversations${unreadTotal > 0 ? ` · ${unreadTotal} unread` : ""}`
+    : "Loading messages…";
 
   return (
-    <VStack space="sm" className="flex-1 px-4 pb-14">
-      <TextInput
-        placeholder="Search messages"
-        placeholderTextColor="#999"
-        value={search}
-        onChangeText={setSearch}
-        autoCapitalize="none"
-        autoCorrect={false}
-        className="mt-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground"
-      />
-      <FlashList
-        data={visible}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.normalizedPhone}
-        ItemSeparatorComponent={ThreadSeparator}
-        ListEmptyComponent={
-          <Text className="pt-8 text-center text-sm text-muted-foreground">
-            {search ? "No matching messages." : "No messages yet."}
-          </Text>
-        }
-        refreshControl={
-          <RefreshControl
-            refreshing={all.isRefetching}
-            onRefresh={() => void all.refetch()}
+    <VStack className="flex-1">
+      <VStack className="gap-3 px-4 pt-2 pb-2">
+        <VStack>
+          <Heading size="2xl">SMS</Heading>
+          <Text className="text-sm text-muted-foreground">{summary}</Text>
+        </VStack>
+        <Input className="h-11 rounded-full border-0 bg-card px-4">
+          <InputSlot>
+            <Search size={16} color={colors.mutedForeground} />
+          </InputSlot>
+          <InputField
+            placeholder="Search messages"
+            value={search}
+            onChangeText={setSearch}
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="search"
           />
-        }
-        ListFooterComponent={
-          partialError ? (
-            <Text className="py-4 text-center text-xs text-destructive">
-              Couldn&apos;t load some messages: {partialError.message}
-            </Text>
-          ) : (
-            <Text className="py-4 text-center text-xs text-muted-foreground">
-              {all.data
-                ? `${all.data.inboxCount} received · ${all.data.sentCount} sent`
-                : ""}
-            </Text>
-          )
-        }
-        style={{ flex: 1 }}
-      />
+          {search.length > 0 && (
+            <InputSlot
+              onPress={() => setSearch("")}
+              accessibilityLabel="Clear search"
+              hitSlop={8}
+            >
+              <X size={16} color={colors.mutedForeground} />
+            </InputSlot>
+          )}
+        </Input>
+      </VStack>
+
+      {all.isPending ? (
+        <VStack className="px-2">
+          {Array.from({ length: 7 }).map((_, i) => (
+            <RowSkeleton key={i} />
+          ))}
+        </VStack>
+      ) : all.error && threads.length === 0 ? (
+        <VStack className="items-center gap-3 px-8 pt-16">
+          <Text className="text-center text-sm text-foreground">
+            Couldn&apos;t load messages.
+          </Text>
+          <Text className="text-center text-xs text-muted-foreground">
+            {all.error.message}
+          </Text>
+          <Button variant="outline" onPress={() => void all.refetch()}>
+            <ButtonText>Try again</ButtonText>
+          </Button>
+        </VStack>
+      ) : (
+        <FlashList
+          data={visible}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.normalizedPhone}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          contentContainerStyle={{
+            paddingHorizontal: 8,
+            paddingBottom: clearance,
+          }}
+          ListEmptyComponent={<EmptyState search={search.trim()} />}
+          refreshControl={
+            <RefreshControl
+              refreshing={all.isRefetching}
+              onRefresh={() => void all.refetch()}
+            />
+          }
+          ListFooterComponent={
+            visible.length > 0 ? (
+              <Text
+                className={
+                  partialError
+                    ? "px-6 py-4 text-center text-xs text-destructive"
+                    : "px-6 py-4 text-center text-xs text-muted-foreground"
+                }
+              >
+                {partialError
+                  ? `Some messages couldn't be loaded: ${partialError.message}`
+                  : `${all.data?.inboxCount ?? 0} received · ${all.data?.sentCount ?? 0} sent`}
+              </Text>
+            ) : null
+          }
+        />
+      )}
     </VStack>
   );
 }

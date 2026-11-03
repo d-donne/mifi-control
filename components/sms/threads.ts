@@ -1,5 +1,14 @@
-import type { SmsMessage } from "@/src/api/types/sms";
+import { Smstat, type SmsMessage } from "@/src/api/types/sms";
 import { str } from "@/src/api/utils";
+
+/** Pending, sent and failed messages are ours; NEW and READ are received. */
+export function isOutgoing(message: SmsMessage): boolean {
+  return (
+    message.Smstat === Smstat.PENDING ||
+    message.Smstat === Smstat.SEND ||
+    message.Smstat === Smstat.SEND_FAILED
+  );
+}
 
 export interface SmsThread {
   phone: string;

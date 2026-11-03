@@ -13,6 +13,7 @@ import {
   SmsType as SmsTypeValues,
   SortType as SortTypeValues,
 } from "../types/sms";
+import { decodeHtmlEntities } from "../utils";
 
 function toNumber(v: unknown, fallback = 0): number {
   const n = typeof v === "number" ? v : Number(v);
@@ -35,8 +36,8 @@ export function normalizeSmsMessage(raw: RawSmsMessage): SmsMessage {
     ...rest,
     Index: toNumber(Index),
     Smstat: toNumber(Smstat),
-    Phone: raw.Phone ?? "",
-    Content: raw.Content ?? "",
+    Phone: decodeHtmlEntities(raw.Phone ?? ""),
+    Content: decodeHtmlEntities(raw.Content ?? ""),
     Date: raw.Date ?? "",
     Sca: raw.Sca ?? "",
     SaveType: toNumber(SaveType),
