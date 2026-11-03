@@ -2,11 +2,17 @@ import { Box } from "@/components/ui/box";
 import { HStack } from "@/components/ui/hstack";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
-import { ArrowDown, ArrowUp } from "lucide-react-native";
+import { ArrowDown, ArrowUp, Power } from "lucide-react-native";
 import PulsingDot from "../common/PulsingDot";
 import { getCurrentPlmn, getDevice, getMonitoring } from "@/src/api/routes";
 import { useHiLinkQuery } from "@/src/hooks/useHiLinkQuery";
-import { formatNetRate, isOnline, networkLabel } from "@/src/api/utils";
+import {
+  formatDuration,
+  formatNetRate,
+  isOnline,
+  networkLabel,
+  num,
+} from "@/src/api/utils";
 import { Divider } from "../ui/divider";
 import useSignalConfig from "./SignalConfig";
 import SignalPattern from "./SignalPattern";
@@ -94,18 +100,25 @@ export default function HeroCard() {
 
       <Divider className="mt-0.5 h-0.5 bg-linear-180 from-primary to-secondary/70 mask-linear-from-48" />
 
-      {/* Bottom: DL/UL rates */}
-      <HStack space="lg">
-        <HStack space="xs" className="items-center">
-          <ArrowUp size={14} color="indigo" />
-          <Text className="font-semibold text-secondary">
-            {formatNetRate(traffic?.CurrentUploadRate ?? 0)}
-          </Text>
+      <HStack className="items-center justify-between pt-2">
+        <HStack space="lg">
+          <HStack space="xs" className="items-center">
+            <ArrowDown size={14} color={colors.primaryForeground} />
+            <Text className="font-bold text-primary-foreground">
+              {formatNetRate(traffic?.CurrentDownloadRate)}
+            </Text>
+          </HStack>
+          <HStack space="xs" className="items-center">
+            <ArrowUp size={14} color={colors.primaryForeground} />
+            <Text className="font-bold text-primary-foreground">
+              {formatNetRate(traffic?.CurrentUploadRate)}
+            </Text>
+          </HStack>
         </HStack>
         <HStack space="xs" className="items-center">
-          <ArrowDown size={14} color="green" />
-          <Text className="font-bold text-green-800">
-            {formatNetRate(traffic?.CurrentDownloadRate ?? 0)}
+          <Power size={12} color={colors.primaryForeground} />
+          <Text className="text-xs font-semibold text-primary-foreground/80">
+            {device ? `Up ${formatDuration(num(device.uptime))}` : "—"}
           </Text>
         </HStack>
       </HStack>

@@ -1,12 +1,10 @@
-/** Convert bytes/sec to "X.X Mbps" (or "X KB/s" if below 1 Mbps). */
+/** Bytes per second as a bit rate, the unit carriers and speed tests use. */
 export function formatNetRate(bytesPerSec: number | undefined): string {
   if (bytesPerSec === undefined || bytesPerSec < 0) return "—";
-  const mbps = bytesPerSec / 125_000;
-  if (mbps >= 1) return `${mbps.toFixed(1)} Mbps`;
-  const kbps = bytesPerSec / 125;
-  const bytes = Math.round(bytesPerSec);
-  if (kbps >= 1) return `${kbps.toFixed(1)} KB/s`;
-  return `${bytes} B/s`;
+  const bits = bytesPerSec * 8;
+  if (bits >= 1_000_000) return `${(bits / 1_000_000).toFixed(1)} Mbps`;
+  if (bits >= 1_000) return `${Math.round(bits / 1_000)} kbps`;
+  return `${Math.round(bits)} bps`;
 }
 
 const NETWORK_RANGES = [

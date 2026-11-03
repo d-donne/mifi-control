@@ -5,6 +5,8 @@ import HeroCard from "@/components/dashboard/HeroCard";
 import { ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import UsageStats from "@/components/dashboard/UsageStats";
+import DevicesSummaryCard from "@/components/dashboard/DevicesSummaryCard";
+import QuickActions from "@/components/dashboard/QuickActions";
 import { useAppColors } from "@/src/hooks/useAppColors";
 
 export default function Home() {
@@ -24,6 +26,8 @@ export default function Home() {
         <VStack space="lg" className="">
           <HeroCard />
           <UsageStats />
+          <DevicesSummaryCard />
+          <QuickActions />
         </VStack>
       </ScrollView>
     </SafeAreaView>
