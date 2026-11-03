@@ -4,7 +4,7 @@ import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
 import { ArrowDown, ArrowUp } from "lucide-react-native";
 import PulsingDot from "../common/PulsingDot";
-import { getDevice, getMonitoring } from "@/src/api/routes";
+import { getCurrentPlmn, getDevice, getMonitoring } from "@/src/api/routes";
 import { useHiLinkQuery } from "@/src/hooks/useHiLinkQuery";
 import { formatNetRate, isOnline, networkLabel } from "@/src/api/utils";
 import { Divider } from "../ui/divider";
@@ -12,12 +12,6 @@ import useSignalConfig from "./SignalConfig";
 import SignalPattern from "./SignalPattern";
 import { useAppColors } from "@/src/hooks/useAppColors";
 import GradientText from "../common/GradientText";
-
-/**
- * The "carrier name" field is a TODO — the MiFi API doesn't expose it.
- * The signal-quality text is derived from `signalIcon` (0-5) untiled text.
- * v2: name can be got from /net/current-plmn
- */
 
 export default function HeroCard() {
   const { data: device } = useHiLinkQuery({
@@ -38,9 +32,15 @@ export default function HeroCard() {
     refetchInterval: 2000,
   });
 
+  const { data: plmn } = useHiLinkQuery({
+    queryKey: ["plmn"],
+    queryFn: getCurrentPlmn,
+    refetchInterval: 60_000,
+  });
+
   const colors = useAppColors();
 
-  const carrier: string | null = "MTN GH";
+  const carrier = plmn?.FullName || plmn?.ShortName || null;
 
   const signalConfig = useSignalConfig(status?.SignalIcon);
 

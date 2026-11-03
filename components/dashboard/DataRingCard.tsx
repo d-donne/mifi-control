@@ -1,30 +1,53 @@
 import { getProgress } from "@/components/common/CircularProgress";
-import { getMonitoring } from "@/src/api/routes";
-import { formatBytes } from "@/src/api/utils";
+import { Text } from "@/components/ui/text";
+import { formatBytes, parseDataLimit } from "@/src/api/utils";
 import { useAppColors } from "@/src/hooks/useAppColors";
-import { useHiLinkQuery } from "@/src/hooks/useHiLinkQuery";
+import { useDataPlan, useMonthStatistics } from "@/src/hooks/useDataUsage";
 import StatRingCard from "./StatRingCard";
 
-const DATA_CAP_BYTES = 5 * 1024 * 1024 * 1024;
-
+/**
+ * Usage for the current billing cycle (download + upload, which is what
+ * carriers count). The ring measures against the device's data plan only
+ * when one is configured (`SetMonthData=1`); otherwise it shows usage alone.
+ */
 export default function DataRingCard() {
   const colors = useAppColors();
+  const { data: month } = useMonthStatistics();
+  const { data: plan } = useDataPlan();
 
-  const { data: traffic } = useHiLinkQuery({
-    queryKey: ["traffic"],
-    queryFn: (client) => getMonitoring(client, "traffic-statistics"),
-    refetchInterval: 8000,
-  });
+  const used =
+    (month?.CurrentMonthDownload ?? 0) + (month?.CurrentMonthUpload ?? 0);
+  const limit =
+    plan?.SetMonthData === 1 ? parseDataLimit(plan.DataLimit) : null;
+  const capBytes = limit && limit.bytes > 0 ? limit.bytes : null;
 
-  const bytes = traffic?.TotalDownload ?? 0;
+  const ratio = capBytes ? used / capBytes : 0;
+  const activeColor =
+    ratio >= 1
+      ? colors.ringDanger
+      : capBytes &&
+          plan &&
+          plan.MonthThreshold > 0 &&
+          ratio * 100 >= plan.MonthThreshold
+        ? colors.ringWarning
+        : colors.dataRing;
 
   return (
     <StatRingCard
-      progress={getProgress(bytes, DATA_CAP_BYTES)}
-      activeColor={colors.dataRing}
+      progress={capBytes ? getProgress(used, capBytes) : 0}
+      activeColor={activeColor}
       trackColor={colors.dataRingTrack}
-      primary={formatBytes(bytes)}
-      secondary="of 5 GB"
+      primary={month ? formatBytes(used) : "—"}
+      secondary={
+        capBytes && limit ? `of ${limit.amount} ${limit.unit}` : "this month"
+      }
+      overlay={
+        month && (
+          <Text className="text-[10px] text-muted-foreground">
+            {formatBytes(month.CurrentDayUsed)} today
+          </Text>
+        )
+      }
     />
   );
 }
