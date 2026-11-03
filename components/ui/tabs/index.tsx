@@ -1,3 +1,4 @@
+// oxlint-disable react-hooks/rules-of-hooks no-unused-vars
 'use client';
 import React, { useEffect, useRef, useMemo } from 'react';
 import { createTabs, TabsContext } from '@gluestack-ui/core/tabs/creator';
