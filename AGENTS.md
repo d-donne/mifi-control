@@ -27,7 +27,8 @@ Use `bunx` instead of `npx` — this project uses bun (`bun.lock` is present).
 ```bash
 bunx expo install <package>  # ALWAYS use instead of npm/yarn/pnpm/bun add — resolves SDK-compatible versions
 bunx expo start              # start the dev server
-bunx expo lint               # lint
+bunx oxlint                  # lint (config: .oxlintrc.json)
+bunx oxfmt                   # format (config: .oxfmtrc.json); --check to verify only
 bunx tsc --noEmit            # typecheck
 bunx expo-doctor             # diagnose dependency and config issues
 bunx expo install --fix      # fix incompatible package versions

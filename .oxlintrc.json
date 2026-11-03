@@ -1,0 +1,42 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": [
+    "typescript",
+    "oxc",
+    "eslint",
+    "unicorn",
+    "import",
+    "react",
+    "jsx-a11y",
+    "promise"
+  ],
+  "jsPlugins": ["eslint-plugin-expo"],
+  "options": {
+    "typeAware": true,
+    "typeCheck": true
+  },
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn"
+  },
+  "env": {
+    "builtin": true
+  },
+  "ignorePatterns": [".expo/**", "*.d.ts"],
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "expo/no-env-var-destructuring": "error",
+    "expo/no-dynamic-env-var": "error"
+  },
+  "overrides": [
+    {
+      "files": ["**/*.tsx"],
+      "rules": {
+        "import/no-unassigned-import": [
+          "warn",
+          { "allow": ["**/*.css", "**/*.scss", "**/*.sass", "**/*.less"] }
+        ]
+      }
+    }
+  ]
+}
