@@ -1,7 +1,11 @@
 import type { HiLinkClient } from "../main";
 import type {
+  DataPlan,
+  DataPlanRaw,
   MonitoringStatus,
   MonitoringStatusRaw,
+  MonthStatistics,
+  MonthStatisticsRaw,
   TrafficStats,
   TrafficStatsRaw,
 } from "../types";
@@ -10,12 +14,16 @@ import { flag, num } from "../utils";
 export interface MonitoringEndpoints {
   status: MonitoringStatus;
   "traffic-statistics": TrafficStats;
+  month_statistics: MonthStatistics;
+  start_date: DataPlan;
 }
 
 /** Raw wire fields (parser returns strings — see parseTagValue: false). */
 export interface MonitoringEndpointsRaw {
   status: MonitoringStatusRaw;
   "traffic-statistics": TrafficStatsRaw;
+  month_statistics: MonthStatisticsRaw;
+  start_date: DataPlanRaw;
 }
 
 // Numeric fields of /api/monitoring/status (per types/monitoring.ts).
@@ -69,6 +77,39 @@ const TRAFFIC_NUMERIC = new Set([
 // 0|1 flag fields of /api/monitoring/traffic-statistics.
 const TRAFFIC_FLAG = new Set(["showtraffic"]);
 
+const COERCION: Record<
+  keyof MonitoringEndpoints,
+  { numeric: Set<string>; flags: Set<string> }
+> = {
+  status: { numeric: STATUS_NUMERIC, flags: STATUS_FLAG },
+  "traffic-statistics": { numeric: TRAFFIC_NUMERIC, flags: TRAFFIC_FLAG },
+  month_statistics: {
+    numeric: new Set([
+      "CurrentMonthDownload",
+      "CurrentMonthUpload",
+      "MonthDuration",
+      "CurrentDayUsed",
+      "CurrentDayDuration",
+    ]),
+    flags: new Set(),
+  },
+  start_date: {
+    numeric: new Set([
+      "StartDay",
+      "DataLimitAwoke",
+      "MonthThreshold",
+      "DayThreshold",
+      "trafficmaxlimit",
+    ]),
+    flags: new Set([
+      "SetMonthData",
+      "turnoffdataenable",
+      "turnoffdataswitch",
+      "turnoffdataflag",
+    ]),
+  },
+};
+
 function coerceFields(
   raw: Record<string, string>,
   numeric: Set<string>,
@@ -91,22 +132,32 @@ export async function getMonitoring<K extends keyof MonitoringEndpoints>(
     response: MonitoringEndpointsRaw[K];
   }>(`/api/monitoring/${endpoint}`);
 
-  // Coerce the raw wire object per endpoint before it crosses into typed
-  // land. The branch is on a compile-time-known key, so it never misses.
-  switch (endpoint) {
-    case "status":
-      return coerceFields(
-        res.response,
-        STATUS_NUMERIC,
-        STATUS_FLAG,
-      ) as MonitoringEndpoints[K];
-    case "traffic-statistics":
-      return coerceFields(
-        res.response,
-        TRAFFIC_NUMERIC,
-        TRAFFIC_FLAG,
-      ) as MonitoringEndpoints[K];
-    default:
-      throw new Error(`Unsupported monitoring endpoint: ${endpoint}`);
-  }
+  const { numeric, flags } = COERCION[endpoint];
+  return coerceFields(res.response, numeric, flags) as MonitoringEndpoints[K];
+}
+
+/**
+ * POST /api/monitoring/start_date. Field order follows Salamek's
+ * `set_start_date` (Huawei bodies are order-sensitive).
+ * `enabled: false` sends SetMonthData=0 — not yet verified on-device.
+ */
+export async function setDataPlan(
+  client: HiLinkClient,
+  plan: {
+    startDay: number;
+    /** Number plus unit, e.g. "20GB" or "500MB". */
+    dataLimit: string;
+    monthThreshold: number;
+    enabled: boolean;
+  },
+): Promise<void> {
+  await client.requestAs("/api/monitoring/start_date", {
+    method: "POST",
+    bodyObj: {
+      StartDay: plan.startDay,
+      DataLimit: plan.dataLimit,
+      MonthThreshold: plan.monthThreshold,
+      SetMonthData: plan.enabled ? 1 : 0,
+    },
+  });
 }

@@ -31,18 +31,31 @@ export function isOnline(statusCode?: number): boolean {
   return statusCode === 901;
 }
 
-/**
- * Format a byte count as a human-readable string. Uses 1024-based units
- * (KiB, MiB, GiB). For dashboard display purposes, a hardcoded cap of 5 GB
- * is configured in the consumer; this just renders the actual usage.
- */
+const KB = 1024;
+const MB = KB * 1024;
+const GB = MB * 1024;
+
+/** Format a byte count with 1024-based units (KB, MB, GB). */
 export function formatBytes(bytes: number | undefined): string {
   if (bytes === undefined || bytes < 0) return "—";
-  const KB = 1024;
-  const MB = KB * 1024;
-  const GB = MB * 1024;
   if (bytes >= GB) return `${(bytes / GB).toFixed(1)} GB`;
   if (bytes >= MB) return `${(bytes / MB).toFixed(1)} MB`;
   if (bytes >= KB) return `${(bytes / KB).toFixed(0)} KB`;
   return `${bytes} B`;
+}
+
+export type DataUnit = "MB" | "GB";
+
+/**
+ * Parses the device's `DataLimit` ("20GB", "500MB", "0MB") into its amount
+ * and unit. Returns null for anything else.
+ */
+export function parseDataLimit(
+  limit: string,
+): { amount: number; unit: DataUnit; bytes: number } | null {
+  const match = /^(\d+(?:\.\d+)?)\s*(MB|GB)$/i.exec(limit.trim());
+  if (!match) return null;
+  const amount = Number(match[1]);
+  const unit = match[2].toUpperCase() as DataUnit;
+  return { amount, unit, bytes: amount * (unit === "GB" ? GB : MB) };
 }
