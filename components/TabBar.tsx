@@ -1,7 +1,7 @@
 import { Box } from "@/components/ui/box";
 import { Pressable } from "@/components/ui/pressable";
 import { Text } from "@/components/ui/text";
-import type { BottomTabBarProps } from "expo-router/build/react-navigation/bottom-tabs";
+import type { BottomTabBarProps } from "expo-router/js-tabs";
 import {
   Home,
   LucideIcon,
@@ -13,16 +13,21 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Center } from "./ui/center";
 import { useAppColors } from "@/src/hooks/useAppColors";
 
-type RouteName = "index" | "devices" | "sms" | "settings";
-
-const TAB_META: Record<RouteName, { Icon: LucideIcon; label: string }> = {
+const TAB_META: Record<
+  string,
+  { Icon: LucideIcon; label: string } | undefined
+> = {
   index: { Icon: Home, label: "Home" },
   devices: { Icon: TabletSmartphone, label: "Devices" },
   sms: { Icon: MessageCircle, label: "SMS" },
   settings: { Icon: SettingsIcon, label: "Settings" },
 };
 
-export default function TabBar({ state, navigation }: BottomTabBarProps) {
+export default function TabBar({
+  state,
+  emitter,
+  navigateToTab,
+}: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const colors = useAppColors();
 
@@ -36,9 +41,9 @@ export default function TabBar({ state, navigation }: BottomTabBarProps) {
       }}
       className="pointer-events-box-none"
     >
-      <Center className="bg-card/95 flex-row p-2" style={{ borderRadius: 100 }}>
+      <Center className="flex-row bg-card/95 p-2" style={{ borderRadius: 100 }}>
         {state.routes.map((route, index) => {
-          const meta = TAB_META[route.name as RouteName];
+          const meta = TAB_META[route.name];
           if (!meta) return null;
           const { Icon, label } = meta;
           const focused = state.index === index;
@@ -47,13 +52,13 @@ export default function TabBar({ state, navigation }: BottomTabBarProps) {
             <Pressable
               key={route.key}
               onPress={() => {
-                const event = navigation.emit({
+                const event = emitter.emit({
                   type: "tabPress",
                   target: route.key,
                   canPreventDefault: true,
                 });
                 if (!focused && !event.defaultPrevented) {
-                  navigation.navigate(route.name);
+                  navigateToTab(route.key);
                 }
               }}
               className="flex-1 items-center justify-center"
@@ -62,17 +67,15 @@ export default function TabBar({ state, navigation }: BottomTabBarProps) {
               <Box
                 className={
                   focused
-                    ? "bg-primary flex-row items-center justify-center px-4 py-2 gap-2"
-                    : "flex-row items-center justify-center px-4 py-2 gap-2"
+                    ? "flex-row items-center justify-center gap-2 bg-primary px-4 py-2"
+                    : "flex-row items-center justify-center gap-2 px-4 py-2"
                 }
                 style={focused ? { borderRadius: 100 } : undefined}
               >
                 <Icon
                   size={20}
                   color={
-                    focused
-                      ? colors.primaryForeground
-                      : colors.mutedForeground
+                    focused ? colors.primaryForeground : colors.mutedForeground
                   }
                 />
                 {focused && (
