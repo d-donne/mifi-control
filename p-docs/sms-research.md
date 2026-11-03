@@ -4,22 +4,22 @@ Target device: Huawei E5576-320, firmware `11.0.1.1(H697SP11C00)`. Sources: `Sal
 
 ## Endpoint inventory (`/api/sms/...`, all under the existing authed session)
 
-| Method (Salamek name) | HTTP | Path | Body | Response |
-|---|---|---|---|---|
-| `smsCount` | GET | `sms/sms-count` | — | counts dict (exact keys unverified on E5576-320 — confirm on device) |
-| `getCbsnewslist` | GET | `sms/get-cbsnewslist` | — | carrier broadcasts; skip |
-| `splitinfoSms` | GET | `sms/splitinfo-sms` | — | skip |
-| `smsFeatureSwitch` | GET | `sms/sms-feature-switch` | — | skip |
-| `sendStatus` | GET | `sms/send-status` | — | send-queue status |
-| `getSmsList` | **POST** | `sms/sms-list` | PageIndex, ReadCount, BoxType, SortType, Ascending, UnreadPreferred | `{ Count, Messages: { Message: [...] } }` |
-| `deleteSms` | POST | `sms/delete-sms` | `{ Index }` | `"OK"` |
-| `setRead` | POST | `sms/set-read` | `{ Index }` | `"OK"` |
-| `saveSms` (draft) | POST | `sms/save-sms` | Index, Phones{Phone[]}, Sca, Content, Length, Reserved, Date | `"OK"` |
-| `sendSms` | POST | `sms/send-sms` | Index, Phones{Phone[]}, Sca, Content, Length, Reserved, Date | `"OK"` |
-| `cancelSend` | POST | `sms/cancel-send` | `{ request: 1 }` | `"OK"` |
-| `config` / `setConfig` | GET / POST | `sms/config` | SaveMode, Validity, Sca, UseSReport, SendType, Priority | skip v1 |
-| `smsCountContact` / `smsListContact` | GET / POST | `sms/sms-count-contact`, `sms/sms-list-contact` | lowercase keys (`pageindex`, `readcount` — casing differs from the rest!) | defer |
-| `*-pdu`, `split-sms`, `recover/copy/move-sms` | mixed | various | — | reverse-engineered/untested; defer. Salamek marks `sendSmsPdu` untested |
+| Method (Salamek name)                         | HTTP       | Path                                            | Body                                                                      | Response                                                                |
+| --------------------------------------------- | ---------- | ----------------------------------------------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `smsCount`                                    | GET        | `sms/sms-count`                                 | —                                                                         | counts dict (exact keys unverified on E5576-320 — confirm on device)    |
+| `getCbsnewslist`                              | GET        | `sms/get-cbsnewslist`                           | —                                                                         | carrier broadcasts; skip                                                |
+| `splitinfoSms`                                | GET        | `sms/splitinfo-sms`                             | —                                                                         | skip                                                                    |
+| `smsFeatureSwitch`                            | GET        | `sms/sms-feature-switch`                        | —                                                                         | skip                                                                    |
+| `sendStatus`                                  | GET        | `sms/send-status`                               | —                                                                         | send-queue status                                                       |
+| `getSmsList`                                  | **POST**   | `sms/sms-list`                                  | PageIndex, ReadCount, BoxType, SortType, Ascending, UnreadPreferred       | `{ Count, Messages: { Message: [...] } }`                               |
+| `deleteSms`                                   | POST       | `sms/delete-sms`                                | `{ Index }`                                                               | `"OK"`                                                                  |
+| `setRead`                                     | POST       | `sms/set-read`                                  | `{ Index }`                                                               | `"OK"`                                                                  |
+| `saveSms` (draft)                             | POST       | `sms/save-sms`                                  | Index, Phones{Phone[]}, Sca, Content, Length, Reserved, Date              | `"OK"`                                                                  |
+| `sendSms`                                     | POST       | `sms/send-sms`                                  | Index, Phones{Phone[]}, Sca, Content, Length, Reserved, Date              | `"OK"`                                                                  |
+| `cancelSend`                                  | POST       | `sms/cancel-send`                               | `{ request: 1 }`                                                          | `"OK"`                                                                  |
+| `config` / `setConfig`                        | GET / POST | `sms/config`                                    | SaveMode, Validity, Sca, UseSReport, SendType, Priority                   | skip v1                                                                 |
+| `smsCountContact` / `smsListContact`          | GET / POST | `sms/sms-count-contact`, `sms/sms-list-contact` | lowercase keys (`pageindex`, `readcount` — casing differs from the rest!) | defer                                                                   |
+| `*-pdu`, `split-sms`, `recover/copy/move-sms` | mixed      | various                                         | —                                                                         | reverse-engineered/untested; defer. Salamek marks `sendSmsPdu` untested |
 
 ## Wire details that matter
 

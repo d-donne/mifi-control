@@ -30,7 +30,7 @@ export default function Header() {
         <Text className="text-2xl font-bold text-foreground">
           {getGreeting()}
         </Text>
-        <HStack space="xs" className="items-center mt-1">
+        <HStack space="xs" className="mt-1 items-center">
           <RefreshCw size={14} />
           <Text className="text-xs text-muted-foreground">
             {formatRelativeTime(dataUpdatedAt)}
@@ -41,7 +41,7 @@ export default function Header() {
         accessibilityLabel="Profile"
         accessibilityRole="button"
         hitSlop={8}
-        className="bg-secondary rounded-full p-2"
+        className="rounded-full bg-secondary p-2"
       >
         <User size={18} color={colors.secondaryForeground} />
       </Pressable>

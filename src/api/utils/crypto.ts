@@ -12,8 +12,11 @@ export async function huaweiPasswordHash(password: string): Promise<string> {
   return btoa(hex);
 }
 
-
-export async function encodePassword(username: string, password: string, token: string): Promise<string> {
+export async function encodePassword(
+  username: string,
+  password: string,
+  token: string,
+): Promise<string> {
   const innerHash = await huaweiPasswordHash(password);
   return await huaweiPasswordHash(`${username}${innerHash}${token}`);
 }

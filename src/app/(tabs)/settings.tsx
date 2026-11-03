@@ -64,7 +64,7 @@ export default function Settings() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-      <Center className="flex-1 mx-4">
+      <Center className="mx-4 flex-1">
         <Card className="w-full">
           <VStack space="md">
             <Heading size="lg">MiFi Settings</Heading>
@@ -125,12 +125,12 @@ export default function Settings() {
                   {seePassword ? (
                     <EyeOff
                       color={colors.mutedForeground}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 "
+                      className="absolute top-1/2 right-2 -translate-y-1/2"
                     />
                   ) : (
                     <Eye
                       color={colors.mutedForeground}
-                      className="absolute  right-2 top-1/2 -translate-y-1/2 "
+                      className="absolute top-1/2 right-2 -translate-y-1/2"
                     />
                   )}
                 </Button>

@@ -52,4 +52,3 @@ export function useHiLinkInfiniteQuery<TData, TError = Error>(
     queryFn: ({ pageParam }) => queryFn(client, pageParam),
   });
 }
-

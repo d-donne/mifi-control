@@ -18,7 +18,7 @@ This file is the single source of truth for project state. Update as work progre
 - **`@tanstack/react-query`** for all data fetching/polling/mutations — chosen to avoid `useEffect`-based manual state. The only `useEffect` in the app is the one-time async client connection in the provider.
 - **Context, not Zustand,** for sharing the single connected `HiLinkClient` instance — this is dependency injection (one object, created once), not state management. **Zustand is earmarked for the Settings screen** once it exists (genuine multi-reader runtime state).
 - **Class-based `HiLinkClient`** (owner's explicit preference over a closure-based factory).
-- **Gluestack UI + Uniwind** for styling — *Gluestack's Uniwind adapter specifically, not NativeWind*. Primitives under `components/ui/*` (`Box`, `Center`, `VStack`, `Text`, etc.).
+- **Gluestack UI + Uniwind** for styling — _Gluestack's Uniwind adapter specifically, not NativeWind_. Primitives under `components/ui/*` (`Box`, `Center`, `VStack`, `Text`, etc.).
 - **Expo Router** (file-based routing: `src/app/_layout.tsx`, `src/app/index.tsx`). Root providers live in `_layout.tsx`, wrapping a `<Stack />` (NOT `<Slot />` — gives real navigation/headers; multiple screens are planned).
 
 ### Latest verified versions (as of project setup)
@@ -107,13 +107,13 @@ post-login token pool size: 2
 
 ### Known-unverified risk (deferred, not urgent)
 
-`tryRefillFromSesTokInfo()` — the fallback that re-hits `SesTokInfo` mid-session to get one fresh token without a full re-login — is **unverified**. Unknown whether `SesTokInfo` called *after* already being logged in returns a token valid for the existing authenticated cookie, or silently starts an unrelated anonymous pre-login session. Current design falls back to a full `triggerLogin()` if the refill's token doesn't work, so it degrades safely for now (just inefficiently).
+`tryRefillFromSesTokInfo()` — the fallback that re-hits `SesTokInfo` mid-session to get one fresh token without a full re-login — is **unverified**. Unknown whether `SesTokInfo` called _after_ already being logged in returns a token valid for the existing authenticated cookie, or silently starts an unrelated anonymous pre-login session. Current design falls back to a full `triggerLogin()` if the refill's token doesn't work, so it degrades safely for now (just inefficiently).
 
 ---
 
 ## Reference: `Salamek/huawei-lte-api` (Python reference implementation)
 
-`https://github.com/Salamek/huawei-lte-api` — actively maintained, the **E5576-320 is explicitly listed as tested**. E5576-320 is the *exact* model this project targets. The Python lib isn't usable as a runtime dep (Metro/bundler polyfill fight), but it's the most authoritative reference for protocol details. Pull from it when something is unclear; do **not** install it.
+`https://github.com/Salamek/huawei-lte-api` — actively maintained, the **E5576-320 is explicitly listed as tested**. E5576-320 is the _exact_ model this project targets. The Python lib isn't usable as a runtime dep (Metro/bundler polyfill fight), but it's the most authoritative reference for protocol details. Pull from it when something is unclear; do **not** install it.
 
 ### Why we keep coming back to it
 
@@ -124,7 +124,7 @@ We are reimplementing the protocol from scratch, and the device firmware is the 
 - `huawei_lte_api/Session.py` — request/session core. **The most important file for us.** Contains `_initialize_csrf_tokens_and_session`, `_process_response_data`, `_post`, `_get`, and all CSRF-token rotation logic.
 - `huawei_lte_api/Connection.py` — thin wrapper that parses user/pass out of the URL and instantiates `UserSession`.
 - `huawei_lte_api/api/User.py` — login flow. `_encode_password` is the SHA256 (`password_type: 4`) implementation, byte-for-byte identical to ours; `_login` / `login` show the request body, error-code-to-exception mapping, and the `force_new_login` semantics.
-- `huawei_lte_api/api/WebServer.py` — `webserver/SesTokInfo`, `webserver/token`, `webserver/publickey`. Note: `SesTokInfo` is marked `~Valid for: B310s-22` — i.e. it's a *fallback* for older devices. Modern firmware exposes a different primary CSRF source.
+- `huawei_lte_api/api/WebServer.py` — `webserver/SesTokInfo`, `webserver/token`, `webserver/publickey`. Note: `SesTokInfo` is marked `~Valid for: B310s-22` — i.e. it's a _fallback_ for older devices. Modern firmware exposes a different primary CSRF source.
 - `huawei_lte_api/enums/client.py` — `ResponseCodeEnum`. Maps error codes to names:
   - `125001` = `ERROR_WRONG_TOKEN` (marked "Unused" in source)
   - `125002` = `ERROR_SYSTEM_CSRF` ("Session error")
@@ -141,14 +141,16 @@ These are patterns the Salamek lib does that we either don't do, or that confirm
 #### 1. **CSRF tokens are parsed from the device's HTML homepage, not from `SesTokInfo`.**
 
 Salamek's `Session._initialize_csrf_tokens_and_session` does this first:
+
 ```python
 response = self.requests_session.get(self.url, timeout=self.timeout)  # GET http://192.168.8.1/
 csrf_tokens = self.csrf_re.findall(response.content.decode("UTF-8"))
 # csrf_re = re.compile(r'name="csrf_token"\s+content="(\S+)"')
 ```
-It scrapes `<meta name="csrf_token" content="...">` out of the returned HTML and stores *every* match (the pool). Only if the HTML doesn't contain that meta tag does it fall back to `/api/webserver/token` and then `/api/webserver/SesTokInfo`.
 
-**This is almost certainly the root cause of our `text/html` mystery and the cascading 125003s.** The device *intends* for clients to start by fetching the HTML home page; that's where the CSRF pool lives. The `text/html` content type on `SesTokInfo` and `login` responses is probably because the device's "you're an unauthenticated client" code path serves the HTML shell and the `__RequestVerificationToken` we get back is a single un-pooled, un-scoped token not valid for the subsequent authenticated session. After login, the device doesn't re-send a fresh token pool header because *it never expected us to come in through `/api/user/login` without first going through the HTML page*.
+It scrapes `<meta name="csrf_token" content="...">` out of the returned HTML and stores _every_ match (the pool). Only if the HTML doesn't contain that meta tag does it fall back to `/api/webserver/token` and then `/api/webserver/SesTokInfo`.
+
+**This is almost certainly the root cause of our `text/html` mystery and the cascading 125003s.** The device _intends_ for clients to start by fetching the HTML home page; that's where the CSRF pool lives. The `text/html` content type on `SesTokInfo` and `login` responses is probably because the device's "you're an unauthenticated client" code path serves the HTML shell and the `__RequestVerificationToken` we get back is a single un-pooled, un-scoped token not valid for the subsequent authenticated session. After login, the device doesn't re-send a fresh token pool header because _it never expected us to come in through `/api/user/login` without first going through the HTML page_.
 
 **Fix path:** in `triggerLogin()`, GET `http://192.168.8.1/` (or `http://192.168.8.1/html/home.html`) first, parse out every `<meta name="csrf_token" content="...">` from the HTML, and use that as the initial `tokenPool`. Then use the `requests` library's session cookies naturally (the `Set-Cookie: SessionID=...` from the HTML response becomes the auth cookie for the subsequent API calls). Only fall back to `SesTokInfo` if no `csrf_token` meta tags are found in the HTML.
 
@@ -156,33 +158,38 @@ This is a single, focused change and is almost certainly the right next step.
 
 #### 2. **The `requests` library's session cookie jar is the auth cookie source.**
 
-Salamek uses `requests.Session` and lets the `Set-Cookie: SessionID=...` from one response be auto-attached to the next. We instead manually build the `SessionID=<sesInfo>` cookie and try to swap it. The Python approach is simpler and more robust: let XHR's cookie store handle it. (RN's `XMLHttpRequest` *does* persist cookies across requests to the same origin in the same session — we just aren't using it because we're hand-rolling the `Cookie` header.)
+Salamek uses `requests.Session` and lets the `Set-Cookie: SessionID=...` from one response be auto-attached to the next. We instead manually build the `SessionID=<sesInfo>` cookie and try to swap it. The Python approach is simpler and more robust: let XHR's cookie store handle it. (RN's `XMLHttpRequest` _does_ persist cookies across requests to the same origin in the same session — we just aren't using it because we're hand-rolling the `Cookie` header.)
 
 **Consider switching** to a "no manual Cookie header" model once the home-page-CSRF-scrape fix is in. Keep the manual approach as fallback.
 
 #### 3. **The login request body uses `application/xml` content-type, not `text/xml`.**
 
 Salamek's `_post`:
+
 ```python
 else:
     headers["Content-Type"] = "application/xml"
 ```
-Our code sends `Content-Type: text/xml; charset=UTF-8` (in both the login POST and the generic `request<T>` method). The device may be picky about this — `application/xml` is the IANA-registered media type for XML; `text/xml` is the legacy subtype. The current behavior is *probably* tolerated by the device, but if content-type negotiation is ever the issue, switch to `application/xml`.
 
-#### 4. **Response data handling: `text/html` is *not* a fatal error — Salamek sniffs the body.**
+Our code sends `Content-Type: text/xml; charset=UTF-8` (in both the login POST and the generic `request<T>` method). The device may be picky about this — `application/xml` is the IANA-registered media type for XML; `text/xml` is the legacy subtype. The current behavior is _probably_ tolerated by the device, but if content-type negotiation is ever the issue, switch to `application/xml`.
+
+#### 4. **Response data handling: `text/html` is _not_ a fatal error — Salamek sniffs the body.**
 
 `_process_response_data`:
+
 ```python
 # Others are not conclusive, e.g. text/html may have JSON or XML
 # Resort to content sniffing if Content-Type wasn't conclusive
 if is_json is None and data and data[0:1] in (b"{", b"["):
     is_json = True
 ```
+
 It explicitly notes that `text/html` content-type can wrap JSON or XML bodies, and falls back to content sniffing. Our code blindly trusts the parsed-XML shape, which is why a 91-byte HTML page silently passes the `isErrorResponse()` check. If we keep the current parsing approach, at least add an early bail: if the response body doesn't start with `<` or `{`, throw a clear "device returned unexpected content" error.
 
 #### 5. **Login uses `refresh_csrf=True` to atomically rotate the token pool.**
 
 Salamek's `_login` calls `self._session.post_set("user/login", ..., refresh_csrf=True)`, and inside `_post`:
+
 ```python
 if refresh_csrf:
     self.request_verification_tokens = []
@@ -193,7 +200,8 @@ if "__RequestVerificationTokenone" in response.headers:
 elif "__RequestVerificationToken" in response.headers:
     self.request_verification_tokens.append(response.headers["__RequestVerificationToken"])
 ```
-So the official logic is: **clear the pool, then refill it from `one` + `two` (legacy), falling back to the full `__RequestVerificationToken` header (modern).** This is the *opposite* of what our session summary and previous diagnosis concluded! Salamek uses `one`/`two` as the primary source and the full header as the fallback. This may be because newer firmware changed the header convention, or because different firmware variants use different ones.
+
+So the official logic is: **clear the pool, then refill it from `one` + `two` (legacy), falling back to the full `__RequestVerificationToken` header (modern).** This is the _opposite_ of what our session summary and previous diagnosis concluded! Salamek uses `one`/`two` as the primary source and the full header as the fallback. This may be because newer firmware changed the header convention, or because different firmware variants use different ones.
 
 **Implication:** our code reads only `__RequestVerificationToken` (correct for newer firmware), but if E5576-320's specific firmware returns `one`/`two` only, we miss the pool entirely.
 
@@ -202,12 +210,14 @@ So the official logic is: **clear the pool, then refill it from `one` + `two` (l
 #### 6. **ConnectionError retry on `state-login`.**
 
 Salamek's `User._state_login_with_retry`:
+
 ```python
 # Some models reportedly close the connection if we attempt to access login state
 # too soon after setting up the session etc. In that case, retry a few times.
 # The error is reported to be
 # ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
 ```
+
 If we ever see the connection drop on the first call to `/api/user/state-login` (or similar) right after session init, this is a known firmware quirk — add a small `(i + 1) / 10`-style backoff and retry up to 5 times. Deferred unless it actually happens.
 
 #### 7. **Encryption mode is opt-in, not the default.**
@@ -234,15 +244,17 @@ Any time we hit one of these signals: `text/html` content-type on an `/api/*` ca
 Status: read-only inbox list with contact grouping, search, and thread view shipped and verified on-device. After it shipped, "some contacts/messages don't show" persisted through several fix iterations; the SMS flow was **restructured from scratch on 2026-09-13** to a fetch-all architecture. Needs on-device verification before marking resolved.
 
 **The 2026-09-13 rework (this is the current architecture):**
+
 - **Root cause of the persistent "not showing":** our pagination trusted the response `Count` as a box total. Re-reading the Salamek reference (`get_messages()`) shows `Count` is only ever checked for **zero** — its semantics (per-page / remaining / global) are undocumented and we must not paginate on it. Our `Count > fetched → keep going` logic requested out-of-range pages, which the device answers with errors; one such error then replaced the whole screen (`if (error)` before rendering data). Two failure modes from one wrong assumption.
 - **New shape:** one "fetch everything" pipeline instead of four infinite queries:
   - `src/api/routes/sms.ts` → `fetchAllSms(client, boxType, pageSize=50, maxPages=200)`: pages with `getSmsList` until an **empty page** (Salamek's exact loop), applies the 10s multipart-age guard at the boundary, and treats a mid-loop page error as non-fatal (returns what it fetched + the error).
-  - `src/hooks/useAllSms.ts` → THE one SMS hook. Single query key `["sms","all"]`: `Promise.all(fetchAllSms(inbox), fetchAllSms(sent))`, merged + sorted ascending by device date; 30s `refetchInterval`; returns `{ messages, inboxCount, sentCount, pages, error }` where `error` is a *partial* failure (loop stopped early), never a thrown one.
+  - `src/hooks/useAllSms.ts` → THE one SMS hook. Single query key `["sms","all"]`: `Promise.all(fetchAllSms(inbox), fetchAllSms(sent))`, merged + sorted ascending by device date; 30s `refetchInterval`; returns `{ messages, inboxCount, sentCount, pages, error }` where `error` is a _partial_ failure (loop stopped early), never a thrown one.
   - `components/sms/threads.ts` → pure selectors over the full set: `groupThreads` (was `groupByPhone`), `filterThreads`, `threadMessages(messages, phone)`, `phonesMatch` (last-9-digits normalization).
   - `components/sms/SmsList.tsx` / `ThreadView.tsx` → thin FlashList renderers over `useAllSms()` + the selectors. **No pagination in the UI at all.** Full-screen error only when nothing loaded; partial failures render as a footer note with the actual error text. List footer also shows fetched counts (`N received · M sent`) as a sanity check against the device's own counts (`sms-count` said LocalInbox=241).
 - **Why this shape:** list and thread read the same query, so "tap → empty detail" is structurally impossible; missing has exactly one meaning (device didn't return it — box coverage); the one pagination surface is a testable loop in a route function, not four `getNextPageParam` heuristics in components. SMS volume is storage-capped (241 messages on-device), so fetch-all is 5 requests/box at 50/page — the right trade at this data size. `useHiLinkInfiniteQuery` is now unused by SMS (dashboard still uses `useHiLinkQuery`).
 
 **Earlier session (v1 read list):**
+
 - `src/api/routes/sms.ts` — `getSmsList` (POST, ordered body, single→array normalization), `getSmsCount`, `setSmsRead`, `deleteSms`, `sendSms`. Types in `src/api/types/sms.ts` (`as const` enums, raw/normalized message + list shapes).
 - `src/hooks/useHiLinkQuery.ts` — added `useHiLinkInfiniteQuery` (client-injected `useInfiniteQuery`, same shape as `useHiLinkQuery`).
 - `components/sms/SmsList.tsx` — owns `["sms","inbox"]`/`["sms","sent"]` queries, infinite scroll, live search (phone OR content), contact grouping via `components/sms/threads.ts` (`groupByPhone`, `filterThreads`). Tap a thread → `/thread/[phone]`.
@@ -252,10 +264,12 @@ Status: read-only inbox list with contact grouping, search, and thread view ship
 **Verified on-device (live data):** inbox search filters correctly across multiple keystrokes with no crash; a thread ("MobileMoney") returned its 8 messages; back from a thread returns to the SMS list (not Home).
 
 **Root-cause findings (all three reported bugs were the same underlying issue):**
+
 - Search crash + "No messages with this contact" were both caused by **stale Metro incremental dev bundles** — the module graph went out of sync while files were being edited, so `SmsList`/`ThreadView` loaded a chunk referencing a not-yet-rebuilt `useHiLinkInfiniteQuery` export (`TypeError: undefined is not a function` at the call site). Confirmed by: (a) the unminified bundle showing the export IS present, (b) a clean app reload making both bugs disappear, (c) the crash reproducing on demand right after an edit-and-reload, then not reproducing after a clean restart. **Not a code bug.** Mitigation: if you see `undefined is not a function` in dev, do a clean reload (force-stop the app, or restart Metro with `bunx expo start --clear`) rather than assuming the code is wrong.
 - The one **real** fix this session: wrapped the root in `GestureHandlerRootView` (`src/app/_layout.tsx`) — logcat showed `NativeViewGestureHandler must be used as a descendant of GestureHandlerRootView`, which breaks gesture handling in FlashList/RefreshControl. Also switched root `<Slot />` → `<Stack screenOptions={{ headerShown: false }} />` so the thread screen stacks over the tabs and back returns to the SMS list (Slot unmounted the tabs and reset to Home).
 
 **Confirmed device facts (this session):**
+
 - `GET /api/sms/sms-count` (unauthenticated works): `LocalUnread=73, LocalInbox=241, LocalOutbox=2` at time of testing.
 - SesTokInfo-mid-session token is **rejected** (`125002`) when replayed from outside the app's own session — confirms the PROJECT.md open question. The app's own login flow is unaffected.
 - **Do not brute-force the device login.** The E5576-320 returns `108006` (wrong user/pass) and counts down remaining attempts; too many failures lock you out. The app's credentials live in expo-secure-store, not `.env` (the `.env` values are stale).
@@ -271,6 +285,7 @@ Phase 1 dashboard shipped (status/traffic/device cards, tab bar, settings, crede
 **Next focus.** Auth + credentials flow is in place. Now we build the actual product surface — a real-time(ish) status dashboard showing battery, traffic, network strength, and other signals from the HiLink API.
 
 **Endpoints available (already wired in `HiLinkClient`):**
+
 - `getStatus()` → `/api/monitoring/status` (ConnectionStatus, SignalIcon, CurrentNetworkTypeEx, etc.)
 - `getTraffic()` → `/api/monitoring/traffic-statistics` (CurrentDownload/Upload, TotalDownload/Upload)
 - `getDeviceInfo()` → `/api/device/information` (DeviceName, SerialNumber, Imei, HardwareVersion, SoftwareVersion)
@@ -280,11 +295,12 @@ Phase 1 dashboard shipped (status/traffic/device cards, tab bar, settings, crede
 
 **Phase 2 — Actions.** Toggle mobile data (`setMobileData`), reboot, SMS list, send SMS, USSD. Out of scope until Phase 1 is shippable.
 
-**Phase 3 — Real-time updates.** Move from polled `useQuery` (current 8s) to either a tighter poll (2-3s) or a periodic background refetch with skeletons during the transition. The Salamek lib doesn't expose any push/socket mechanism, so polling is the only option. *Defer until Phase 1 is in.*
+**Phase 3 — Real-time updates.** Move from polled `useQuery` (current 8s) to either a tighter poll (2-3s) or a periodic background refetch with skeletons during the transition. The Salamek lib doesn't expose any push/socket mechanism, so polling is the only option. _Defer until Phase 1 is in._
 
 ### ~~Active work: credentials and login UI~~ — COMPLETE
 
 All four items in the original "credentials and login UI" plan shipped:
+
 - Credentials moved from `.env` to `expo-secure-store` via `useStoredCredentials` hook.
 - Settings screen at `src/app/settings.tsx` — Card + FormControl + Heading primitives (no VStack nesting).
 - First-run flow: provider renders `<Settings />` inline when no creds are present.
@@ -308,6 +324,7 @@ The credentials phase is complete (see "Active work: dashboard" above for status
 7. **Wire the dashboard to the home screen.** Replace the raw JSON dump in `components/test.tsx` with the three cards. Keep the Logout button. Remove the `<Text>Additional info here</Text>` debug line.
 
 **Deferred (out of Phase 1):**
+
 - Battery percentage (need to verify which endpoint returns it on E5576-320 — likely `/api/monitoring/status` already contains it under a field name we haven't inspected).
 - Session uptime (also in monitoring status, need to inspect actual response shape).
 - SMS list, send SMS, USSD (Phase 2).
@@ -320,15 +337,15 @@ The credentials phase is complete (see "Active work: dashboard" above for status
 
 ## Change log
 
-- **2026-09-03 — 125003 login bug resolved.** Rewrote `triggerLogin()` in `src/api/main.ts` to scrape the HTML home page for CSRF tokens + `Set-Cookie` (per Salamek `Session._initialize_csrf_tokens_and_session`). Added `trySesTokInfoFallback()` as a defensive path for older firmware. Added `fetchHomePage()` to wrap the home page request with user-friendly error messages. Token-pool refill on login response now follows Salamek's `refresh_csrf` priority (`one`+`two` first, full header as fallback). Module-level helpers `extractCsrfTokens`, `extractSessionIdCookie`, `extractLoginTokenPool` extracted. Cleaned up `xhr.ts` (exported `XhrResponse`, removed diagnostic `console.log`s) and `errors/index.ts` (dropped dead `ERROR_CODES` export). *Unblocks:* the entire app — `getStatus()` polling now returns live data on-device.
-- **2026-09-03 — Post-login cookie fallback added.** First on-device run revealed the E5576-320 firmware does *not* always re-issue `Set-Cookie` on `/api/user/login`. Updated the post-login cookie extraction to keep the home-page `SessionID` when the login response has no new `Set-Cookie`, instead of throwing. Re-added two diagnostic `console.log`s at the post-login decision point (cookie + token pool size). *Unblocks:* stable auth across firmware variants.
-- **2026-09-03 — `ScrollView` import fix in `src/app/index.tsx`.** Was importing from `@expo/ui` (which doesn't export `ScrollView`). Switched to `react-native`. Removed dead `useState` for unused `result`/`loading`. Added `flex-1 bg-background` on `SafeAreaView` and `contentContainerClassName="flex-grow"` on `ScrollView` for proper layout. *Unblocks:* UI scrolling on Android.
+- **2026-09-03 — 125003 login bug resolved.** Rewrote `triggerLogin()` in `src/api/main.ts` to scrape the HTML home page for CSRF tokens + `Set-Cookie` (per Salamek `Session._initialize_csrf_tokens_and_session`). Added `trySesTokInfoFallback()` as a defensive path for older firmware. Added `fetchHomePage()` to wrap the home page request with user-friendly error messages. Token-pool refill on login response now follows Salamek's `refresh_csrf` priority (`one`+`two` first, full header as fallback). Module-level helpers `extractCsrfTokens`, `extractSessionIdCookie`, `extractLoginTokenPool` extracted. Cleaned up `xhr.ts` (exported `XhrResponse`, removed diagnostic `console.log`s) and `errors/index.ts` (dropped dead `ERROR_CODES` export). _Unblocks:_ the entire app — `getStatus()` polling now returns live data on-device.
+- **2026-09-03 — Post-login cookie fallback added.** First on-device run revealed the E5576-320 firmware does _not_ always re-issue `Set-Cookie` on `/api/user/login`. Updated the post-login cookie extraction to keep the home-page `SessionID` when the login response has no new `Set-Cookie`, instead of throwing. Re-added two diagnostic `console.log`s at the post-login decision point (cookie + token pool size). _Unblocks:_ stable auth across firmware variants.
+- **2026-09-03 — `ScrollView` import fix in `src/app/index.tsx`.** Was importing from `@expo/ui` (which doesn't export `ScrollView`). Switched to `react-native`. Removed dead `useState` for unused `result`/`loading`. Added `flex-1 bg-background` on `SafeAreaView` and `contentContainerClassName="flex-grow"` on `ScrollView` for proper layout. _Unblocks:_ UI scrolling on Android.
 - **2026-09-03 — Project tracker created.** `AGENTS.md` updated with the "learning project" rules (chat-only by default, no edits without explicit permission). `PROJECT.md` created as the single source of truth. `CLAUDE.md` updated to re-export `PROJECT.md` alongside `AGENTS.md`.
-- **2026-09-03 — Salamek reference section added.** Documented seven concrete learnings from the `Salamek/huawei-lte-api` Python source, with code excerpts and implications for our TS implementation. The home-page-CSRF-scrape insight (item 1) was the direct unblocker for the 125003 bug. *Unblocks:* future protocol investigations have a starting point.
+- **2026-09-03 — Salamek reference section added.** Documented seven concrete learnings from the `Salamek/huawei-lte-api` Python source, with code excerpts and implications for our TS implementation. The home-page-CSRF-scrape insight (item 1) was the direct unblocker for the 125003 bug. _Unblocks:_ future protocol investigations have a starting point.
 - **2026-09-03 — README rewritten.** Replaced the `create-expo-app` boilerplate with a project-specific README covering stack, status, run instructions, and config.
-- **2026-09-03 — Credentials phase shipped.** `useStoredCredentials` hook (`src/hooks/useStoredCredentials.ts`) reads/writes three values from `expo-secure-store`. `HiLinkProvider` refactored to consume the hook, drop the `.env` props, and render `<Settings />` inline when no creds are present. Settings screen at `src/app/settings.tsx` built with `Card` + `FormControl` + `Heading` primitives. `_layout.tsx` cleaned up (removed unused `useUniwind` import). Test screen got a Logout button that calls `clear()` and routes to root, which renders Settings via the no-creds branch. *Unblocks:* Phase 1 dashboard can now ship behind a real auth gate.
+- **2026-09-03 — Credentials phase shipped.** `useStoredCredentials` hook (`src/hooks/useStoredCredentials.ts`) reads/writes three values from `expo-secure-store`. `HiLinkProvider` refactored to consume the hook, drop the `.env` props, and render `<Settings />` inline when no creds are present. Settings screen at `src/app/settings.tsx` built with `Card` + `FormControl` + `Heading` primitives. `_layout.tsx` cleaned up (removed unused `useUniwind` import). Test screen got a Logout button that calls `clear()` and routes to root, which renders Settings via the no-creds branch. _Unblocks:_ Phase 1 dashboard can now ship behind a real auth gate.
 - **2026-09-03 — Dashboard phase started.** Plan added to "Next steps" and "Active work" sections. Will build a single-column `VStack` of `Card`s showing status, traffic, and device info. Implementation steps 1-7 enumerated. SMS list method on the client is the first concrete addition; the other steps are component work.
-- **2026-09-10 — SMS v1 read list shipped + root-cause diagnosis of the search/thread bugs.** Built the read-only SMS surface: `src/api/routes/sms.ts` (full SMS client), `src/api/types/sms.ts`, `useHiLinkInfiniteQuery`, `components/sms/SmsList.tsx` (infinite scroll + live search + contact grouping), `src/app/thread/[phone].tsx` + `components/sms/ThreadView.tsx` (conversation view). Verified on-device against live E5576-320 data: search filters correctly, a thread returned its 8 messages, back returns to the list. **Critical finding:** the reported search crash and "No messages" were both stale Metro incremental dev bundles (module graph out of sync during editing → `useHiLinkInfiniteQuery` import resolved undefined), NOT code bugs. Proved it by exporting a production bundle and showing the export (line 308649) is defined before every call site (373361+) — definition-before-use is guaranteed in an atomic bundle, so this class of crash is impossible in release builds. **Dev-side fix:** baked `EXPO_NO_METRO_LAZY=1` into the `start` and `android` scripts so Metro never serves a stale lazy chunk during development. The one production code fix: wrapped root in `GestureHandlerRootView` and switched `<Slot />`→`<Stack />` in `_layout.tsx` (fixed a logcat gesture-handler error and made back-from-thread return to the SMS list instead of Home). Confirmed device facts: `sms-count` = LocalUnread 73 / LocalInbox 241 / LocalOutbox 2; SesTokInfo-mid-session token replayed externally returns `125002`. **Do not brute-force the device login** (108006 + attempt counter → lockout; app creds are in expo-secure-store, `.env` values are stale). *Unblocks:* mark-read/delete, compose/send, tab badge, contacts integration.
+- **2026-09-10 — SMS v1 read list shipped + root-cause diagnosis of the search/thread bugs.** Built the read-only SMS surface: `src/api/routes/sms.ts` (full SMS client), `src/api/types/sms.ts`, `useHiLinkInfiniteQuery`, `components/sms/SmsList.tsx` (infinite scroll + live search + contact grouping), `src/app/thread/[phone].tsx` + `components/sms/ThreadView.tsx` (conversation view). Verified on-device against live E5576-320 data: search filters correctly, a thread returned its 8 messages, back returns to the list. **Critical finding:** the reported search crash and "No messages" were both stale Metro incremental dev bundles (module graph out of sync during editing → `useHiLinkInfiniteQuery` import resolved undefined), NOT code bugs. Proved it by exporting a production bundle and showing the export (line 308649) is defined before every call site (373361+) — definition-before-use is guaranteed in an atomic bundle, so this class of crash is impossible in release builds. **Dev-side fix:** baked `EXPO_NO_METRO_LAZY=1` into the `start` and `android` scripts so Metro never serves a stale lazy chunk during development. The one production code fix: wrapped root in `GestureHandlerRootView` and switched `<Slot />`→`<Stack />` in `_layout.tsx` (fixed a logcat gesture-handler error and made back-from-thread return to the SMS list instead of Home). Confirmed device facts: `sms-count` = LocalUnread 73 / LocalInbox 241 / LocalOutbox 2; SesTokInfo-mid-session token replayed externally returns `125002`. **Do not brute-force the device login** (108006 + attempt counter → lockout; app creds are in expo-secure-store, `.env` values are stale). _Unblocks:_ mark-read/delete, compose/send, tab badge, contacts integration.
 - **2026-09-13 (later) — Two SMS fixes from first on-device fetch-all run.** (1) **Alphanumeric sender IDs** (telecom/bank names — no digits) were digit-stripped to `""` by the last-9 normalizer, merging every named sender into ONE phantom thread. This was the dominant cause of "most contacts missing" all along. `normalizePhone` now keys digit-poor senders by raw name (lowercased); numbers keep last-9 grouping. (2) **Intermittent footer errors:** both boxes were fetched with `Promise.all`, but the device has a single auth session and a 2–3 token CSRF pool — concurrent page loops interleave token rotation/re-login and a re-login rotates the `SessionID` cookie out from under the other loop. Boxes now fetch sequentially in `useAllSms`. Both documented in `p-docs/sms-research.md` addendum.
-- **2026-09-13 — Parser boundary fix + SMS fetch-all rework.** Two root causes found and fixed after days of "some contacts/messages don't show": (1) `fast-xml-parser`'s implicit `strnum` coercion was silently destroying data at the transport boundary — `<Phone>0241234567</Phone>` arrived as `241234567` (leading zero eaten), all-digit `<Content>` (OTP codes) arrived as numbers and crashed `toLowerCase` in search. Fix: `parseTagValue: false` in `HiLinkClient`'s parser (wire is strings; routes coerce explicitly via new `num`/`flag`/`str` helpers in `src/api/utils`), with per-endpoint coercion maps in `routes/monitoring.ts` and raw `*Raw` type aliases in `types/{monitoring,traffic,device}.ts`. Phone grouping fixed to last-9-digits in `threads.ts` (`+233…`/`233…`/`0…` now one thread). (2) Pagination trusted the response `Count` as a box total — re-reading Salamek's `get_messages()` shows `Count` is only checked for zero; its real semantics are undocumented. Our `Count > fetched` logic requested out-of-range pages, the device errored, and the UI (`if (error)` before data) replaced the whole screen with a perpetual error. Fix: restructured the SMS flow to fetch-all — `fetchAllSms()` page-loop in `routes/sms.ts` (stop on empty page, 10s multipart guard, per-page errors non-fatal), single `useAllSms` hook (key `["sms","all"]`, both boxes merged, 30s poll), pure selectors in `threads.ts`, and `SmsList`/`ThreadView` reduced to thin FlashList renderers with no UI pagination. List and detail share one query so they can't disagree. Also: full datetime display in threads (`formatFullDateTime`), empty-content placeholder for pending multipart parts, and `HiLinkError` now includes the error **code** when the device sends no `<message>`. *Needs on-device verification:* contacts/messages completeness; if still incomplete, next diagnostic is per-box coverage (SIM/MIX boxes) via a dev debug screen.
-- **2026-09-03 — SMS research consolidated.** Re-fetched `Salamek/huawei-lte-api` (`Sms.py`, `enums/sms.py`, `Tools.py`) and `Salamek/huawei-lte-api-ts` (`Sms.ts`, `Connection.ts`) and wrote up the full findings in [`p-docs/sms-research.md`](./p-docs/sms-research.md): endpoint table, POST-body field order, single→array normalization, date format, multipart guard, enum values, client/UI phase slices, on-device open questions. *Unblocks:* the next session can start implementing SMS with zero re-research. Also trimmed README to ~20 lines.
+- **2026-09-13 — Parser boundary fix + SMS fetch-all rework.** Two root causes found and fixed after days of "some contacts/messages don't show": (1) `fast-xml-parser`'s implicit `strnum` coercion was silently destroying data at the transport boundary — `<Phone>0241234567</Phone>` arrived as `241234567` (leading zero eaten), all-digit `<Content>` (OTP codes) arrived as numbers and crashed `toLowerCase` in search. Fix: `parseTagValue: false` in `HiLinkClient`'s parser (wire is strings; routes coerce explicitly via new `num`/`flag`/`str` helpers in `src/api/utils`), with per-endpoint coercion maps in `routes/monitoring.ts` and raw `*Raw` type aliases in `types/{monitoring,traffic,device}.ts`. Phone grouping fixed to last-9-digits in `threads.ts` (`+233…`/`233…`/`0…` now one thread). (2) Pagination trusted the response `Count` as a box total — re-reading Salamek's `get_messages()` shows `Count` is only checked for zero; its real semantics are undocumented. Our `Count > fetched` logic requested out-of-range pages, the device errored, and the UI (`if (error)` before data) replaced the whole screen with a perpetual error. Fix: restructured the SMS flow to fetch-all — `fetchAllSms()` page-loop in `routes/sms.ts` (stop on empty page, 10s multipart guard, per-page errors non-fatal), single `useAllSms` hook (key `["sms","all"]`, both boxes merged, 30s poll), pure selectors in `threads.ts`, and `SmsList`/`ThreadView` reduced to thin FlashList renderers with no UI pagination. List and detail share one query so they can't disagree. Also: full datetime display in threads (`formatFullDateTime`), empty-content placeholder for pending multipart parts, and `HiLinkError` now includes the error **code** when the device sends no `<message>`. _Needs on-device verification:_ contacts/messages completeness; if still incomplete, next diagnostic is per-box coverage (SIM/MIX boxes) via a dev debug screen.
+- **2026-09-03 — SMS research consolidated.** Re-fetched `Salamek/huawei-lte-api` (`Sms.py`, `enums/sms.py`, `Tools.py`) and `Salamek/huawei-lte-api-ts` (`Sms.ts`, `Connection.ts`) and wrote up the full findings in [`p-docs/sms-research.md`](./p-docs/sms-research.md): endpoint table, POST-body field order, single→array normalization, date format, multipart guard, enum values, client/UI phase slices, on-device open questions. _Unblocks:_ the next session can start implementing SMS with zero re-research. Also trimmed README to ~20 lines.

@@ -12,13 +12,11 @@ import { useAppColors } from "@/src/hooks/useAppColors";
 export default function Home() {
   const { clear } = useStoredCredentials();
   const router = useRouter();
-  const colors = useAppColors()
+  const colors = useAppColors();
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-      <ScrollView
-        contentContainerClassName="flex-grow pb-6 px-3 pt-2"
-      >
+      <ScrollView contentContainerClassName="flex-grow pb-6 px-3 pt-2">
         <Header />
         <VStack space="lg" className="">
           <HeroCard />

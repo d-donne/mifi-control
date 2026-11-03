@@ -28,7 +28,7 @@ export default function StatRingCard({
   overlay?: ReactNode;
 }) {
   return (
-    <VStack space="sm" className="bg-card rounded-2xl p-3 items-center">
+    <VStack space="sm" className="items-center rounded-2xl bg-card p-3">
       <CircularProgress
         progress={progress}
         activeColor={activeColor}

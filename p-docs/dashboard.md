@@ -41,6 +41,7 @@ src/hooks/HiLinkProvider.tsx     # Update import path: ../app/settings → ../ap
 ## Phases
 
 ### Phase 1 — Navigator scaffolding (no UI changes yet)
+
 - [ ] 1.1: Move `src/app/settings.tsx` → `src/app/(tabs)/settings.tsx`
 - [ ] 1.2: Update `HiLinkProvider` import path
 - [ ] 1.3: Create `src/app/(tabs)/_layout.tsx` with `Tabs` + placeholder `tabBar`
@@ -53,6 +54,7 @@ src/hooks/HiLinkProvider.tsx     # Update import path: ../app/settings → ../ap
 **Verification after Phase 1:** app launches, shows the existing JSON dump, all four tabs visible at the bottom, tapping each tab navigates, tapping Settings on the home tab still works for logout.
 
 ### Phase 2 — Bottom nav visual (TabBar.tsx)
+
 - [ ] 2.1: Create `components/dashboard/TabBar.tsx` — floating pill with 4 items, active state with accent pill
 - [ ] 2.2: Wire it into `src/app/(tabs)/_layout.tsx` as the `tabBar` prop
 - [ ] 2.3: Typecheck
@@ -60,6 +62,7 @@ src/hooks/HiLinkProvider.tsx     # Update import path: ../app/settings → ../ap
 **Verification after Phase 2:** bottom nav looks like the mock (floating pill, accent active state, inactive items icon-only).
 
 ### Phase 3 — Header + Hero card
+
 - [ ] 3.1: Create `components/dashboard/PulsingDot.tsx` — Reanimated pulse (opacity 1 → 0.3, 2s loop)
 - [ ] 3.2: Create `components/dashboard/SignalBars.tsx` — 4 bars, opacity mapped to `SignalIcon` (0-5)
 - [ ] 3.3: Create `components/dashboard/Header.tsx` — greeting + last-updated timestamp + profile button
@@ -69,12 +72,14 @@ src/hooks/HiLinkProvider.tsx     # Update import path: ../app/settings → ../ap
 **Verification after Phase 3:** home screen shows the header and a real hero card with live data from `getStatus()` and `getTraffic()`. No mock values.
 
 ### Phase 4 — Stat rings (battery + data usage)
+
 - [ ] 4.1: Create `components/dashboard/StatRingCard.tsx` — reusable wrapper around the existing `CircularProgress`
 - [ ] 4.2: Add two StatRingCards to the home screen in a 2-column row (battery + data usage)
 
 **Verification after Phase 4:** two ring cards side by side below the hero. Battery animates from 0 on mount. Data usage shows `TotalDownload` formatted as GB.
 
 ### Phase 5 — Devices card + Quick actions
+
 - [ ] 5.1: Create `components/dashboard/DevicesCard.tsx` — count + chevron (no avatars yet, no list yet)
 - [ ] 5.2: Create `components/dashboard/QuickActions.tsx` — Wi-Fi toggle (wired to `setMobileData`), Share + Speed test placeholders
 - [ ] 5.3: Wire both into the home screen
@@ -82,6 +87,7 @@ src/hooks/HiLinkProvider.tsx     # Update import path: ../app/settings → ../ap
 **Verification after Phase 5:** home screen has all six content sections from the mock, minus the throughput chart and the avatar list.
 
 ### Phase 6 — Polish + cleanup
+
 - [ ] 6.1: Remove `components/test.tsx` (its content has been replaced by the dashboard)
 - [ ] 6.2: Update `PROJECT.md` change log
 - [ ] 6.3: Remove the diagnostic `console.log` lines in `triggerLogin()` (deferred item, can clean up now)

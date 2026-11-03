@@ -11,10 +11,10 @@ import { useAppColors } from "@/src/hooks/useAppColors";
 export default function ThreadScreen() {
   const { phone } = useLocalSearchParams<{ phone: string }>();
   const router = useRouter();
-  const color = useAppColors()
+  const color = useAppColors();
 
   return (
-    <SafeAreaView style={{flex: 1, backgroundColor: color.background}}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: color.background }}>
       <VStack className="flex-1">
         <HStack className="items-center px-4 py-2" space="sm">
           <Pressable onPress={() => router.back()} hitSlop={8}>

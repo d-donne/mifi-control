@@ -45,10 +45,10 @@ export default function HeroCard() {
   const signalConfig = useSignalConfig(status?.SignalIcon);
 
   return (
-    <Box className="bg-primary dark:bg-primary/90 rounded-2xl p-5  relative overflow-hidden">
+    <Box className="relative overflow-hidden rounded-2xl bg-primary p-5 dark:bg-primary/90">
       {/* Top row: eyebrow + status pill */}
       <HStack className="items-center justify-between">
-        <Text className="text-xs uppercase tracking-wider text-primary-foreground/80 font-semibold">
+        <Text className="text-xs font-semibold tracking-wider text-primary-foreground/80 uppercase">
           {device?.DeviceName ?? "MiFi"}
         </Text>
         <HStack space="sm" className="items-center">
@@ -56,7 +56,7 @@ export default function HeroCard() {
             isOnline={isOnline(status?.ConnectionStatus)}
             colorClass="bg-online-dot"
           />
-          <Text className="text-sm font-medium ">
+          <Text className="text-sm font-medium">
             {isOnline(status?.ConnectionStatus) ? "Online" : "Offline"}
           </Text>
         </HStack>
@@ -64,7 +64,7 @@ export default function HeroCard() {
       </HStack>
 
       {/* Middle: network type + carrier + signal bars */}
-      <HStack className="items-end justify-between mt-4">
+      <HStack className="mt-4 items-end justify-between">
         <VStack>
           <GradientText
             text={networkLabel(status?.CurrentNetworkTypeEx)}
@@ -92,7 +92,7 @@ export default function HeroCard() {
         />
       </HStack>
 
-      <Divider className="h-0.5 mt-0.5 bg-linear-180 mask-linear-from-48 from-primary to-secondary/70" />
+      <Divider className="mt-0.5 h-0.5 bg-linear-180 from-primary to-secondary/70 mask-linear-from-48" />
 
       {/* Bottom: DL/UL rates */}
       <HStack space="lg">
@@ -104,7 +104,7 @@ export default function HeroCard() {
         </HStack>
         <HStack space="xs" className="items-center">
           <ArrowDown size={14} color="green" />
-          <Text className=" font-bold text-green-800">
+          <Text className="font-bold text-green-800">
             {formatNetRate(traffic?.CurrentDownloadRate ?? 0)}
           </Text>
         </HStack>
