@@ -1,4 +1,4 @@
-import { Button, ButtonText } from "@/components/ui/button";
+import { Button, ButtonSpinner, ButtonText } from "@/components/ui/button";
 import { Heading } from "@/components/ui/heading";
 import { HStack } from "@/components/ui/hstack";
 import { Pressable } from "@/components/ui/pressable";
@@ -6,13 +6,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
 import { getMonitoring, splitHostAddresses } from "@/src/api/routes";
-import type { LanHost } from "@/src/api/types";
+import type { BlockedDevice, LanHost } from "@/src/api/types";
 import { formatDuration } from "@/src/api/utils";
 import { useAppColors } from "@/src/hooks/useAppColors";
 import { useHiLinkQuery } from "@/src/hooks/useHiLinkQuery";
+import { useMacFilter, useUnblockDevice } from "@/src/hooks/useDeviceActions";
 import { useLanHosts } from "@/src/hooks/useLanHosts";
 import { useRouter } from "expo-router";
-import { ChevronDown, ChevronRight, ChevronUp } from "lucide-react-native";
+import { Ban, ChevronDown, ChevronRight, ChevronUp } from "lucide-react-native";
 import { useState } from "react";
 import { RefreshControl, ScrollView, View } from "react-native";
 import {
@@ -20,6 +21,7 @@ import {
   displayName,
   isUnnamed,
   DeviceIcon,
+  isMacLike,
 } from "./hostDisplay";
 
 function CapacityCard({
@@ -128,11 +130,51 @@ function HostRow({ host }: { host: LanHost }) {
   );
 }
 
+function BlockedRow({ device }: { device: BlockedDevice }) {
+  const colors = useAppColors();
+  const unblock = useUnblockDevice();
+  const name =
+    device.name && !isMacLike(device.name) ? device.name : "Unnamed device";
+
+  return (
+    <VStack className="py-3">
+      <HStack space="md" className="items-center">
+        <View className="h-11 w-11 items-center justify-center rounded-full bg-background">
+          <Ban size={20} color={colors.destructive} />
+        </View>
+        <VStack className="flex-1">
+          <Text className="text-foreground" numberOfLines={1}>
+            {name}
+          </Text>
+          <Text className="text-xs text-muted-foreground" selectable>
+            {device.mac}
+          </Text>
+        </VStack>
+        <Button
+          variant="outline"
+          size="sm"
+          onPress={() => unblock.mutate(device.mac)}
+          isDisabled={unblock.isPending}
+        >
+          {unblock.isPending && <ButtonSpinner />}
+          <ButtonText>Unblock</ButtonText>
+        </Button>
+      </HStack>
+      {unblock.error && (
+        <Text className="pt-1 text-xs text-destructive">
+          {unblock.error.message}
+        </Text>
+      )}
+    </VStack>
+  );
+}
+
 export default function DeviceList() {
   const colors = useAppColors();
   const [showPrevious, setShowPrevious] = useState(false);
 
   const hosts = useLanHosts();
+  const { data: filter } = useMacFilter();
   const { data: status } = useHiLinkQuery({
     queryKey: ["status"],
     queryFn: (client) => getMonitoring(client, "status"),
@@ -143,7 +185,13 @@ export default function DeviceList() {
   const connected = all
     .filter((h) => h.Active === 1)
     .sort((a, b) => b.isLocalDevice - a.isLocalDevice || byDisplayName(a, b));
-  const previous = all.filter((h) => h.Active === 0).sort(byDisplayName);
+  const blocked = filter?.blocked ?? [];
+  const blockedMacs = new Set(blocked.map((d) => d.mac));
+  const previous = all
+    .filter(
+      (h) => h.Active === 0 && !blockedMacs.has(h.MacAddress.toUpperCase()),
+    )
+    .sort(byDisplayName);
 
   return (
     <ScrollView
@@ -193,6 +241,19 @@ export default function DeviceList() {
                 )}
               </VStack>
             </VStack>
+
+            {blocked.length > 0 && (
+              <VStack space="xs">
+                <Text className="px-1 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                  Blocked
+                </Text>
+                <VStack className="rounded-3xl bg-card px-4 py-1">
+                  {blocked.map((device) => (
+                    <BlockedRow key={device.mac} device={device} />
+                  ))}
+                </VStack>
+              </VStack>
+            )}
 
             {previous.length > 0 && (
               <VStack className="rounded-3xl bg-card px-4 py-1">

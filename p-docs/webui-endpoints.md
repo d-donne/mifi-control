@@ -1,6 +1,6 @@
 # Web UI Endpoints — Captured Responses
 
-Source: HAR export of the device web UI (E5576-320, firmware `11.0.1.1`), captured 2026-11-03. Field names and value formats below are **observed on our device**, not inferred. Identifiers (IMEI, MACs, IPs, host names) were masked during analysis and are not recorded here.
+Source: HAR exports of the device web UI (E5576-320, firmware `11.0.1.1`), captured 2026-11-03. Field names and value formats below are **observed on our device**, not inferred. Identifiers (IMEI, MACs, IPs, host names) were masked during analysis and are not recorded here.
 
 All calls are `GET`. The web UI sent **no `__RequestVerificationToken` on GETs** — consistent with our `pickToken()` (GETs only attach a token when one is left in the pool). The HAR has since been deleted; this file is the record.
 
@@ -96,7 +96,8 @@ Host fields: `Active`, `ActualName`, `HostName`, `IpAddress`, `MacAddress`, `Add
 - Filter `Active=1` for "connected now"; `isLocalDevice=1` can be labelled "This phone".
 - `IpAddress` is `IPv4` or `IPv4;IPv6` (semicolon-separated) — split on `;`.
 - `MacAddress` is colon-separated (`aa:bb:cc:dd:ee:ff`).
-- `HostName` and `ActualName` were identical for all 21 hosts and never empty.
+- `HostName` is the name the device reports; `ActualName` is the name set in the web UI and equals `HostName` until the device is renamed (see `lan/changedevicename`). Neither was ever empty. Show `ActualName`.
+- A device that sends no hostname gets its MAC with dashes as the name (`AA-BB-CC-DD-EE-FF`).
 - Sample active hosts: one with `isLocalDevice=1` (the browsing phone, `AssociatedTime≈21900 s`), one other wireless client (`≈23300 s`); inactive hosts have empty `AssociatedTime` and `LeaseTime=0` once expired. One `Ethernet` host appeared (inactive) — likely USB tethering.
 - Response is ~9 KB for 21 hosts; poll it slowly (e.g. 30 s), not on the 8 s status cycle.
 - Single-host responses will arrive as an object, not an array — normalize like `sms-list`.
@@ -120,6 +121,69 @@ Host fields: `Active`, `ActualName`, `HostName`, `IpAddress`, `MacAddress`, `Add
 ### `cradle/status-info`
 
 Returns `<error><code>100002</code></error>` — not supported on the E5576 (no Ethernet cradle). Skip.
+
+## Device management (second and third captures, 2026-11-03)
+
+Writes captured from the web UI's device page. POSTs carried `__RequestVerificationToken`, `Content-Type: application/x-www-form-urlencoded; charset=UTF-8;`, `Referer: /html/content.html`; our client's `text/xml` POSTs are accepted elsewhere. Each answered `<response>OK</response>`. The page's script (`js/devicemanagement.js`) was in the capture and confirms the details below.
+
+### `lan/changedevicename` — rename (POST)
+
+```xml
+<request><ID>InternetGatewayDevice.LANDevice.1.Hosts.Host.5.</ID><ActualName>New name</ActualName></request>
+```
+
+- `ID` is the host's `ID` from `lan/HostInfo`, not its MAC.
+- Afterwards `ActualName` changes in `lan/HostInfo` and `wlan/host-list`; `HostName` keeps the reported name.
+- The web UI trims the name, refuses an empty one, and caps it at 64 bytes (Chinese characters count as 3).
+- There is no reset call. Renaming back to `HostName` restores the never-renamed state (`ActualName === HostName`).
+
+### `lan/HostInfo` — forget an offline device (POST, from the script only)
+
+`{ ID: 0, MacAddress: <mac> }`, answered `OK`. Not exercised from the app yet.
+
+### `wlan/multi-macfilter-settings-ex` — block list (GET)
+
+```xml
+<enable>1</enable><wifimacfilterstatus>2</wifimacfilterstatus>
+<Ssids><Ssid><wifimacblacklist>
+  <WifiMacFilterMac1>…</WifiMacFilterMac1><wifihostname1>phone-b</wifihostname1>
+  <WifiMacFilterMac0>…</WifiMacFilterMac0><wifihostname0>phone-a</wifihostname0>
+</wifimacblacklist><wifimacwhitelist></wifimacwhitelist><Index>0</Index></Ssid>
+<Ssid>… Index 1 …</Ssid><Ssid>… Index 2 …</Ssid></Ssids>
+```
+
+- `wifimacfilterstatus`: `0` off, `1` allow-list, `2` block-list (this device: `2`).
+- Entries come in no fixed order; pair `WifiMacFilterMac{n}` with `wifihostname{n}` by number. The list is compacted (numbered from 0, no gaps).
+- MACs are upper-case with colons, same as `lan/HostInfo`.
+
+### `wlan/multi-macfilter-settings` — block / unblock (POST)
+
+The body **replaces the whole list** for the SSID. Block (appends at the next number):
+
+```xml
+<request><Ssids><Ssid>
+  <WifiMacFilterMac0>…</WifiMacFilterMac0><wifihostname0>phone-a</wifihostname0>
+  <WifiMacFilterMac1>…</WifiMacFilterMac1><wifihostname1>phone-b</wifihostname1>
+  <WifiMacFilterMac2>…</WifiMacFilterMac2><wifihostname2>phone-b</wifihostname2>
+  <WifiMacFilterStatus>2</WifiMacFilterStatus><Index>0</Index>
+</Ssid></Ssids></request>
+```
+
+Unblock sends the same list with the removed slot blank (`<WifiMacFilterMac2></WifiMacFilterMac2><wifihostname2></wifihostname2>`); the next GET is compacted again. Field order varies between requests (it comes from a JS object), so the device doesn't care about order.
+
+**Danger:** with `WifiMacFilterStatus=1` the list becomes the only devices allowed to connect. A wrong write locks every other device out, including the phone running the app. The app reads the list fresh before every write, refuses in allow-list mode, never blocks the requesting device, and keeps to the 32-entry limit.
+
+### `wlan/wifi-feature-switch`
+
+Capabilities. Relevant: `wifimaxmacfilternum=32` (block-list limit), `wifimacfilterextendenable=1`, `guestwifi_enable=1`, `maxapnum=3` (SSIDs), `wifi5g_enabled=0`.
+
+### `wlan/host-list`
+
+Connected Wi-Fi clients only, same fields as `lan/HostInfo` plus `Frequency` (`2.4GHz`). `lan/HostInfo` covers what the app needs.
+
+### `cradle/feature-switch`
+
+`<error><code>100002</code></error>` — unsupported, like `cradle/status-info`.
 
 ## Not captured
 

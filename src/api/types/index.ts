@@ -6,3 +6,4 @@ export * from "./sms";
 export * from "./usage";
 export * from "./net";
 export * from "./lan";
+export * from "./wlan";

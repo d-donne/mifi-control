@@ -23,8 +23,12 @@ const KIND_RULES: [RegExp, DeviceKind][] = [
 ];
 
 /** The MiFi falls back to the MAC as the name when a device sends none. */
+export function isMacLike(name: string): boolean {
+  return MAC_LIKE.test(name);
+}
+
 export function isUnnamed(host: LanHost): boolean {
-  return MAC_LIKE.test(host.ActualName || host.HostName);
+  return isMacLike(host.ActualName || host.HostName);
 }
 
 export function displayName(host: LanHost): string {

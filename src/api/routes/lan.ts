@@ -29,6 +29,17 @@ export async function getLanHosts(client: HiLinkClient): Promise<LanHost[]> {
   return list.map(normalizeHost);
 }
 
+export async function renameDevice(
+  client: HiLinkClient,
+  id: string,
+  name: string,
+): Promise<void> {
+  await client.requestAs("/api/lan/changedevicename", {
+    method: "POST",
+    bodyObj: { ID: id, ActualName: name },
+  });
+}
+
 /** Splits "IPv4;IPv6" into its parts. */
 export function splitHostAddresses(ipAddress: string): {
   ipv4: string | null;
