@@ -15,7 +15,7 @@ export interface AllSms {
   inboxCount: number;
   sentCount: number;
   pages: number;
-  error: unknown | null;
+  error: Error | null;
 }
 
 /**
@@ -54,7 +54,7 @@ export function useAllSms() {
         error: inbox.error ?? sent.error ?? null,
       };
     },
-    refetchInterval: 30_000,
-    staleTime: 20_000,
+    refetchInterval: 10_000,
+    staleTime: 10_000,
   });
 }

@@ -34,7 +34,9 @@
       "warn",
       { "allow": ["__RequestVerificationToken"] }
     ],
-    "react/style-prop-object": ["warn", { "allow": ["StatusBar"] }]
+    "react/style-prop-object": ["warn", { "allow": ["StatusBar"] }],
+    "unicorn/no-array-sort": "off",
+    "unicorn/no-array-reverse": "off"
   },
   "overrides": [
     {

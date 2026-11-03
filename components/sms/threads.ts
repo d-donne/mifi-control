@@ -53,7 +53,10 @@ export function groupThreads(messages: SmsMessage[]): SmsThread[] {
   );
 }
 
-export function filterThreads(threads: SmsThread[], query: string): SmsThread[] {
+export function filterThreads(
+  threads: SmsThread[],
+  query: string,
+): SmsThread[] {
   const q = query.trim().toLowerCase();
   if (!q) return threads;
   return threads.filter(

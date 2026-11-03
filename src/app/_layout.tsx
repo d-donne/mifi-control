@@ -9,6 +9,7 @@ import {
 import { Stack } from "expo-router";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { HiLinkProvider } from "../hooks/HiLinkProvider";
+import { SmsNotifier } from "../notifications/SmsNotifier";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import Toast from "react-native-toast-message";
@@ -30,10 +31,11 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClinet}>
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <SafeAreaProvider >
-          <StatusBar animated style="light" />
+        <SafeAreaProvider>
+          <StatusBar animated style="auto" />
           <GluestackUIProvider mode="system">
             <HiLinkProvider>
+              <SmsNotifier />
               <Stack screenOptions={{ headerShown: false }} />
             </HiLinkProvider>
           </GluestackUIProvider>

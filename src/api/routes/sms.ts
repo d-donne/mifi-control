@@ -14,14 +14,15 @@ import {
   SortType as SortTypeValues,
 } from "../types/sms";
 
-function toNumber(v: string | number | unknown, fallback = 0): number {
+function toNumber(v: unknown, fallback = 0): number {
   const n = typeof v === "number" ? v : Number(v);
   return Number.isFinite(n) ? n : fallback;
 }
 
+const pad = (n: number) => String(n).padStart(2, "0");
+
 /** Format a Date as naive-local "YYYY-MM-DD HH:MM:SS" for the device. */
 export function formatDeviceDate(d: Date = new Date()): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
   return (
     `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ` +
     `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
@@ -96,7 +97,7 @@ export interface FetchAllSmsResult {
   /** Pages actually fetched (for diagnostics). */
   pages: number;
   /** If a mid-loop page failed, the error that stopped it (non-fatal). */
-  error: unknown | null;
+  error: Error | null;
 }
 
 /**
@@ -115,14 +116,14 @@ export async function fetchAllSms(
 ): Promise<FetchAllSmsResult> {
   const messages: SmsMessage[] = [];
   let pages = 0;
-  let lastError: unknown | null = null;
+  let lastError: Error | null = null;
 
   for (let page = 1; page <= maxPages; page++) {
     let res: SmsListResponse;
     try {
       res = await getSmsList(client, page, pageSize, boxType);
     } catch (e) {
-      lastError = e;
+      lastError = e instanceof Error ? e : new Error(String(e));
       break;
     }
     pages++;
