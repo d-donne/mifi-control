@@ -23,17 +23,22 @@ export default function PulsingDot({
 
   useEffect(() => {
     if (isOnline) {
-      opacity.value = withRepeat(
-        withTiming(0.3, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
-        -1,
-        true,
+      opacity.set(
+        withRepeat(
+          withTiming(0.3, {
+            duration: 2000,
+            easing: Easing.inOut(Easing.ease),
+          }),
+          -1,
+          true,
+        ),
       );
     } else {
-      opacity.value = withTiming(0.4, { duration: 300 });
+      opacity.set(withTiming(0.4, { duration: 300 }));
     }
   }, [isOnline, opacity]);
 
-  const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
+  const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.get() }));
 
   return (
     <Animated.View

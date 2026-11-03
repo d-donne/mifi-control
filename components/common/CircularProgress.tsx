@@ -38,14 +38,16 @@ export default function CircularProgress({
   const totalBoxSize = (radius + strokeWidth) * 2;
 
   useEffect(() => {
-    animatedProgress.value = withTiming(Math.min(Math.max(progress, 0), 1), {
-      duration,
-      easing: Easing.out(Easing.quad),
-    });
-  }, [progress, duration]);
+    animatedProgress.set(
+      withTiming(Math.min(Math.max(progress, 0), 1), {
+        duration,
+        easing: Easing.out(Easing.quad),
+      }),
+    );
+  }, [progress, duration, animatedProgress]);
 
   const animatedCircleProps = useAnimatedProps(() => ({
-    strokeDashoffset: circumference * (1 - animatedProgress.value),
+    strokeDashoffset: circumference * (1 - animatedProgress.get()),
   }));
 
   return (

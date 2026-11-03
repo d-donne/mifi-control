@@ -1,4 +1,3 @@
-import { ReactNode } from "react";
 import Svg, {
   Defs,
   LinearGradient,
@@ -16,7 +15,7 @@ export default function GradientText({
   width = 200,
   height,
 }: {
-  text: ReactNode;
+  text: string;
   colors: readonly [string, string, ...string[]];
   fontSize?: number;
   fontWeight?: "400" | "500" | "600" | "700" | "800" | "900";
@@ -58,7 +57,7 @@ export default function GradientText({
         fontWeight={fontWeight}
         fill="url(#grad)"
       >
-        {String(text)}
+        {text}
       </SvgText>
     </Svg>
   );
