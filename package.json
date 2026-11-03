@@ -12,7 +12,6 @@
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "prebuild": "expo prebuild --clean",
-    "reset-project": "node ./scripts/reset-project.js",
     "start": "expo start",
     "web": "expo start --web"
   },
