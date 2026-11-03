@@ -92,3 +92,16 @@ export function threadMessages(
 export function phonesMatch(a: unknown, b: unknown): boolean {
   return normalizePhone(a) === normalizePhone(b);
 }
+
+/** Codes and numbers worth one-tap copying: "482913", "+233241234567". */
+export function copyableNumbers(content: string, limit = 4): string[] {
+  const found: string[] = [];
+  for (const token of content.split(/[\s,;()]+/)) {
+    const value = token.replace(/[.:!?]+$/, "");
+    if (/^\+?\d{4,15}$/.test(value) && !found.includes(value)) {
+      found.push(value);
+      if (found.length === limit) break;
+    }
+  }
+  return found;
+}

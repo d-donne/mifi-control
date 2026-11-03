@@ -1,3 +1,4 @@
+import ConfirmDialog from "@/components/common/ConfirmDialog";
 import { Button, ButtonText } from "@/components/ui/button";
 import { HStack } from "@/components/ui/hstack";
 import { Pressable } from "@/components/ui/pressable";
@@ -12,12 +13,13 @@ import {
 } from "@/src/api/utils/date";
 import { useAllSms } from "@/src/hooks/useAllSms";
 import { useAppColors } from "@/src/hooks/useAppColors";
-import { useMarkRead } from "@/src/hooks/useSmsActions";
+import { useDeleteSms, useMarkRead } from "@/src/hooks/useSmsActions";
 import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
 import { ChevronLeft } from "lucide-react-native";
-import { memo, useCallback, useEffect, useMemo, useRef } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RefreshControl } from "react-native";
+import MessageActions from "./MessageActions";
 import SenderAvatar from "./SenderAvatar";
 import { isOutgoing, threadMessages } from "./threads";
 
@@ -86,8 +88,10 @@ function DaySeparator({ label }: { label: string }) {
 
 const MessageBubble = memo(function MessageBubble({
   item,
+  onLongPress,
 }: {
   item: MessageItem;
+  onLongPress: (message: SmsMessage) => void;
 }) {
   const { message, outgoing, grouped } = item;
   const content = message.Content.trim();
@@ -99,18 +103,18 @@ const MessageBubble = memo(function MessageBubble({
       className={outgoing ? "items-end" : "items-start"}
       style={{ marginTop: grouped ? 3 : 12 }}
     >
-      <VStack
-        accessible
+      <Pressable
+        onLongPress={() => onLongPress(message)}
+        accessibilityHint="Long press for copy and delete"
         accessibilityLabel={`${outgoing ? "Sent" : "Received"} ${formatFullDateTime(message.time)}: ${content || "message still arriving"}${status ? `. ${status}` : ""}`}
         className={
           outgoing
-            ? "max-w-[80%] rounded-2xl rounded-br-md bg-primary px-3.5 py-2"
-            : "max-w-[80%] rounded-2xl rounded-bl-md bg-card px-3.5 py-2"
+            ? "max-w-[80%] rounded-2xl rounded-br-md bg-primary px-3.5 py-2 data-[active=true]:opacity-80"
+            : "max-w-[80%] rounded-2xl rounded-bl-md bg-card px-3.5 py-2 data-[active=true]:opacity-80"
         }
       >
         {content ? (
           <Text
-            selectable
             className={
               outgoing
                 ? "text-[15px] leading-5 text-primary-foreground"
@@ -139,7 +143,7 @@ const MessageBubble = memo(function MessageBubble({
         >
           {formatClockTime(message.time)}
         </Text>
-      </VStack>
+      </Pressable>
       {status && (
         <Text
           className={
@@ -195,6 +199,7 @@ function BubbleSkeleton({ outgoing }: { outgoing: boolean }) {
 }
 
 export default function ThreadView({ phone }: { phone: string }) {
+  const router = useRouter();
   const all = useAllSms();
   const partialError = all.data?.error;
 
@@ -217,12 +222,21 @@ export default function ThreadView({ phone }: { phone: string }) {
     markRead(unread);
   }, [messages, markRead]);
 
+  const [actionsFor, setActionsFor] = useState<SmsMessage | null>(null);
+  const [deleting, setDeleting] = useState<SmsMessage | null>(null);
+  const { mutate: deleteMessages } = useDeleteSms();
+  const confirmDelete = () => {
+    if (!deleting) return;
+    deleteMessages([deleting.Index]);
+    if (messages.length === 1) router.back();
+  };
+
   const renderItem = useCallback(
     ({ item }: { item: ThreadItem }) =>
       item.type === "day" ? (
         <DaySeparator label={item.label} />
       ) : (
-        <MessageBubble item={item} />
+        <MessageBubble item={item} onLongPress={setActionsFor} />
       ),
     [],
   );
@@ -284,6 +298,19 @@ export default function ThreadView({ phone }: { phone: string }) {
           }
         />
       )}
+      <MessageActions
+        message={actionsFor}
+        onClose={() => setActionsFor(null)}
+        onDelete={setDeleting}
+      />
+      <ConfirmDialog
+        isOpen={deleting !== null}
+        onClose={() => setDeleting(null)}
+        title="Delete message?"
+        message="It will be removed from the MiFi."
+        confirmLabel="Delete"
+        onConfirm={confirmDelete}
+      />
     </VStack>
   );
 }

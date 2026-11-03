@@ -1,3 +1,4 @@
+import ConfirmDialog from "@/components/common/ConfirmDialog";
 import { useTabBarClearance } from "@/components/TabBar";
 import { Box } from "@/components/ui/box";
 import { Button, ButtonText } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import { VStack } from "@/components/ui/vstack";
 import { formatListTime } from "@/src/api/utils";
 import { useAllSms, useDeviceNotifications } from "@/src/hooks/useAllSms";
 import { useAppColors } from "@/src/hooks/useAppColors";
+import { useDeleteSms } from "@/src/hooks/useSmsActions";
 import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
 import { MessageSquare, Search, X } from "lucide-react-native";
@@ -21,6 +23,7 @@ import {
   filterThreads,
   groupThreads,
   isOutgoing,
+  threadMessages,
   type SmsThread,
 } from "./threads";
 
@@ -30,7 +33,13 @@ function previewText(thread: SmsThread): string {
   return isOutgoing(thread.lastMessage) ? `You: ${content}` : content;
 }
 
-const ThreadRow = memo(function ThreadRow({ item }: { item: SmsThread }) {
+const ThreadRow = memo(function ThreadRow({
+  item,
+  onLongPress,
+}: {
+  item: SmsThread;
+  onLongPress: (thread: SmsThread) => void;
+}) {
   const router = useRouter();
   const unread = item.unreadCount > 0;
   const preview = previewText(item);
@@ -43,6 +52,8 @@ const ThreadRow = memo(function ThreadRow({ item }: { item: SmsThread }) {
           params: { phone: item.phone },
         })
       }
+      onLongPress={() => onLongPress(item)}
+      accessibilityHint="Long press to delete the conversation"
       accessibilityRole="button"
       accessibilityLabel={`${item.phone}${unread ? `, ${item.unreadCount} unread` : ""}. ${preview}`}
       className="flex-row items-center gap-3 rounded-2xl px-3 py-3 data-[active=true]:bg-card"
@@ -145,8 +156,21 @@ export default function SmsList() {
     [threads],
   );
 
+  const [deleting, setDeleting] = useState<SmsThread | null>(null);
+  const { mutate: deleteMessages } = useDeleteSms();
+  const confirmDelete = () => {
+    if (!deleting) return;
+    deleteMessages(
+      threadMessages(all.data?.messages ?? [], deleting.phone).map(
+        (m) => m.Index,
+      ),
+    );
+  };
+
   const renderItem = useCallback(
-    ({ item }: { item: SmsThread }) => <ThreadRow item={item} />,
+    ({ item }: { item: SmsThread }) => (
+      <ThreadRow item={item} onLongPress={setDeleting} />
+    ),
     [],
   );
 
@@ -248,6 +272,18 @@ export default function SmsList() {
           }
         />
       )}
+      <ConfirmDialog
+        isOpen={deleting !== null}
+        onClose={() => setDeleting(null)}
+        title="Delete conversation?"
+        message={
+          deleting
+            ? `${deleting.count === 1 ? "1 message" : `${deleting.count} messages`} with ${deleting.phone} will be removed from the MiFi.`
+            : ""
+        }
+        confirmLabel="Delete"
+        onConfirm={confirmDelete}
+      />
     </VStack>
   );
 }
