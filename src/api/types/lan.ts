@@ -3,8 +3,11 @@
  * earlier; `Active` marks the ones connected now.
  */
 export interface LanHost {
+  /** "InternetGatewayDevice.LANDevice.1.Hosts.Host.5."; lan/changedevicename takes it. */
   ID: string;
+  /** Name the device reports. */
   HostName: string;
+  /** Name set in the web UI; equals HostName until renamed. */
   ActualName: string;
   /** "IPv4" or "IPv4;IPv6". */
   IpAddress: string;

@@ -1,12 +1,12 @@
 import type { HiLinkClient } from "../main";
 import type { LanHost, LanHostRaw, RawHostInfoResponse } from "../types";
-import { flag, num, str } from "../utils";
+import { decodeHtmlEntities, flag, num, str } from "../utils";
 
 function normalizeHost(raw: LanHostRaw): LanHost {
   return {
     ID: str(raw.ID),
-    HostName: str(raw.HostName),
-    ActualName: str(raw.ActualName),
+    HostName: decodeHtmlEntities(str(raw.HostName)),
+    ActualName: decodeHtmlEntities(str(raw.ActualName)),
     IpAddress: str(raw.IpAddress),
     MacAddress: str(raw.MacAddress),
     Active: flag(raw.Active),
