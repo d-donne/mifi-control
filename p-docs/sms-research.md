@@ -64,3 +64,30 @@ The v1 implementation used four `useInfiniteQuery` loops (list inbox/sent, threa
 - UI does no pagination at all. Dataset is device-storage-capped (241 inbox messages on the test device), so fetch-all is ~5 requests/box — strictly simpler and more correct than incremental paging at this scale.
 - **Alphanumeric sender IDs (2026-09-13, second session finding):** many SMS senders are names, not numbers (telecom "MTN", banks, etc.). The original last-9-digit normalizer digit-stripped those to `""`, merging **every named sender into one phantom thread** — this, not pagination, was the dominant cause of "most contacts missing". `normalizePhone` now keys digit-poor senders by their raw name (lowercased); number senders keep last-9 grouping.
 - **Sequential box fetches (2026-09-13):** `useAllSms` originally fetched both boxes with `Promise.all`. The device has one auth session and a 2–3 token CSRF pool; two concurrent page loops interleave token rotation and re-login, and a re-login rotates the `SessionID` cookie out from under the other loop → intermittent per-page device errors (the footer flip-flopping between counts and "Device returned error"). Boxes now fetch sequentially.
+
+## Addendum (2026-11-03): notifications, redesign, navigation
+
+Current shape (supersedes the `Promise.all` / 30 s details above):
+
+- **`useAllSms`** fetches inbox then sent **sequentially**, every **10 s**, error typed `Error | null` (partial failure, shown in the list footer).
+- **Navigation:** the list is the `sms` tab (`src/app/(app)/(tabs)/sms.tsx`); a conversation opens full-screen above the tabs at **`/conversation/[phone]`** (row taps and notification taps both use it). It was briefly a nested stack inside the tab; moved out when the tabs became swipeable (a sideways swipe mid-conversation would switch tabs).
+- **List (`SmsList`):** heading with conversation/unread counts, search (sender, number, text) with clear, `SenderAvatar` rows (initial for named senders, person icon for numbers), unread emphasis + count badge, "You: …" when the last message is ours, short timestamps (`formatListTime`), row-shaped skeletons, empty states.
+- **Conversation (`ThreadView`):** header (back, avatar, count), day separators (`formatDayLabel`), same-side bubbles within 5 min grouped, time per bubble, "Sending…" / "Not sent" under outgoing pending/failed messages, selectable text (copy OTPs), "Message still arriving…" for empty multipart parts, opens at the newest message (FlashList `startRenderingFromBottom`).
+- **`isOutgoing`** (in `threads.ts`): `Smstat` 2 (pending), 3 (sent), 4 (send failed) are ours. Status 4 used to render as received.
+- **HTML entities:** the device sends `/` as `&#x2F;` in SMS text; `normalizeSmsMessage` runs `decodeHtmlEntities` on `Content` and `Phone`.
+
+### Notifications (`src/notifications/`)
+
+`SmsNotifier` (mounted in the `(app)` layout) diffs each `["sms","all"]` result against the message indexes it has seen and posts one local notification per thread with new unread messages (`Smstat 0`). Tapping opens `/conversation/[phone]`. Foreground only (JS timers pause in the background).
+
+Known issues, to fix in the SMS iteration:
+
+1. `ensureSmsPermissions` requests permission **before** creating the Android channel; on Android 13+ the prompt needs a channel first.
+2. The seen set is **replaced** each poll; a partial fetch followed by a full one re-notifies old unread messages. Union instead, and skip diffing when `error` is set.
+3. The full SMS fetch runs every 10 s on every screen. Use `monitoring/check-notifications` `UnreadMessage` as a cheap trigger and refetch only when it rises.
+4. A tap that cold-starts the app isn't handled (`useLastNotificationResponse`).
+
+### Next SMS iteration (planned)
+
+- `check-notifications`: `UnreadMessage` → tab badge + notifier trigger; `SmsStorageFull=1` → warning (a full store stops receiving SMS). Shapes in [`webui-endpoints.md`](./webui-endpoints.md).
+- Mark read on open (`setSmsRead`), delete (`deleteSms`), compose/reply (`sendSms`, send defaults above). Use long-press menus, not swipe actions — the tab pager owns horizontal swipes.

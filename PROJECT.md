@@ -1,337 +1,204 @@
 # MiFi Dashboard — Project Tracker
 
-A custom Expo (React Native + TypeScript) app to control a Huawei E5576-320 MiFi directly via its local HiLink HTTP API — replacing the official "AI Life" app. No backend server; the phone talks straight to the device at `192.168.8.1` over local Wi-Fi.
+A custom Expo (React Native + TypeScript) app that controls a Huawei E5576-320 MiFi directly through its local HiLink HTTP API, replacing the official "AI Life" app. No backend: the phone talks to the device at `http://192.168.8.1` over the MiFi's Wi-Fi.
 
-This file is the single source of truth for project state. Update as work progresses.
+This file is the single source of truth for project state. Research lives in [`p-docs/`](./p-docs/).
 
 ---
 
-## Stack & conventions
+## Resume here
 
-- **Expo + TypeScript** (SDK 57, React 19.2, RN 0.86, per `package.json`).
-- **Bun** is the package manager / runtime (`bun.lock` present). Use `bunx` instead of `npx`; `bun install` instead of `npm install`.
-- **No backend.** HiLink API is plain HTTP+XML served by the device; phone calls it directly.
-- **Not using `huawei-lte-api-ts` / `huawei-lte-api` (Python) as runtime deps.** Both are reference sources for endpoint names/auth flow, but the protocol is simple enough to reimplement directly (and worth avoiding the Node polyfill fight).
-- **`fast-xml-parser`** for XML parsing (`XMLParser`) — pure JS, works in Expo Go.
-- **`fast-xml-builder`** for XML building — installed directly (CVE-2026-41650 was fixed there; `fast-xml-parser`'s own `XMLBuilder` is a thin re-export).
-- **`expo-crypto`** for SHA256. **No `Buffer` polyfill** — Hermes/RN ≥0.74 has native `btoa`/`atob`, so `btoa(hexString)` works directly.
-- **`@tanstack/react-query`** for all data fetching/polling/mutations — chosen to avoid `useEffect`-based manual state. The only `useEffect` in the app is the one-time async client connection in the provider.
-- **Context, not Zustand,** for sharing the single connected `HiLinkClient` instance — this is dependency injection (one object, created once), not state management. **Zustand is earmarked for the Settings screen** once it exists (genuine multi-reader runtime state).
-- **Class-based `HiLinkClient`** (owner's explicit preference over a closure-based factory).
-- **Gluestack UI + Uniwind** for styling — _Gluestack's Uniwind adapter specifically, not NativeWind_. Primitives under `components/ui/*` (`Box`, `Center`, `VStack`, `Text`, etc.).
-- **Expo Router** (file-based routing: `src/app/_layout.tsx`, `src/app/index.tsx`). Root providers live in `_layout.tsx`, wrapping a `<Stack />` (NOT `<Slot />` — gives real navigation/headers; multiple screens are planned).
+_Last updated 2026-11-03._
 
-### Latest verified versions (as of project setup)
+**Git state when this was written** (check `git log` / `git status` first)
 
-Pinned in `package.json` to the current latest releases:
+- **Phase 5 (swipeable tabs):** if `git log` doesn't show `feat(nav): swipeable tabs with sliding indicator; conversation above tabs`, it's still staged — commit it after a device check (full message in the change log). It needs the dev client built with `react-native-pager-view`.
+- **Phase 6 (data plan) is work in progress in the working tree, uncommitted:** `components/settings/DataPlanEditor.tsx`, `src/app/(app)/data-plan.tsx`, the "Usage → Data plan" row in `src/app/(app)/(tabs)/settings.tsx`, and a `data-plan` `Stack.Screen` (still `presentation: "modal"`) in `src/app/(app)/_layout.tsx`.
+- Untracked on purpose, never commit: `assets/ui-frame.png` (the dashboard design mock) and any `*.har` capture.
 
-- `@gluestack-ui/core` `5.0.15`, `@gluestack-ui/utils` `5.0.6`
-- `uniwind` `1.11.0`
-- `fast-xml-parser` `5.11.1`, `fast-xml-builder` `1.3.1`
-- `@tanstack/react-query` `5.102.8`
-- `expo-crypto` `57.0.2`
+**Next action:** finish Phase 6 (see [Next steps](#next-steps-ordered)).
 
-When upgrading, recheck the npm registry — these are the latest at the time of writing, not a guarantee.
+**Running the app**
+
+- JS-only changes: `bunx expo start` with the installed dev client (Metro on :8081); fast refresh applies edits.
+- After adding a native module: rebuild the dev client with `bun run android` (`expo run:android`). Add `--no-bundler` when Metro is already running.
+- An Android emulator (`emulator-5554`) is used for checks: `adb -s emulator-5554 exec-out screencap -p > shot.png`, `adb shell input tap x y`. The Expo dev client's floating gear button is not part of the app.
+
+---
+
+## How we work
+
+Conventions the owner set; follow them.
+
+- **Small phases.** Break work into phases; each phase is one commit. Brainstorm before structural UI or navigation changes. Don't build several phases in one go.
+- **Per phase:** review the diff → format (`bunx oxfmt <files>`) → lint (`bunx oxlint <files>`) → typecheck → stage **only that phase's files** → confirm the staged snapshot typechecks on its own → hand over a commit message. The owner reviews, tests on device, commits, and says "next".
+  - Staged-snapshot typecheck: `git checkout-index -a --prefix=<tmp>/`, symlink `node_modules` into it, run `node_modules/.bin/tsc --noEmit` there.
+  - Staging part of a file (interactive `git add -p` isn't available): write the wanted version to a temp file, then `git update-index --cacheinfo "100644,$(git hash-object -w <tmp>),<path>"`.
+- **Commit messages:** conventional style used in this repo, `type(scope): summary` plus short bullets saying what changed and why.
+- **Never delete Gluestack components** in `components/ui/` even when unused; they were added up front because adding them after upgrades tends to break.
+- **Don't add `*.har` or `assets/ui-frame.png` to `.gitignore`;** they're simply never committed.
+- **Check UI on the emulator** (screenshots) when it's available.
+- `AGENTS.md` still applies: explain before editing unless asked; read Expo docs for the installed SDK, not memory.
+
+---
+
+## Stack
+
+| Area            | Choice                                                                                                                    | Version                               |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| Framework       | Expo SDK 58, React 19.3, React Native 0.88 (new architecture, Hermes V1)                                                  | `expo ^58.0.0`, `react-native 0.88.1` |
+| Language        | TypeScript 7 (native `tsc`); excluded from `expo install` checks via `expo.install.exclude`                               | `^7.0.2`                              |
+| Package manager | Bun (`bunx`, `bunx expo install <pkg>`)                                                                                   | —                                     |
+| Routing         | Expo Router, protected routes, `expo-router/js-top-tabs` for swipeable tabs                                               | `~58.0.29`                            |
+| Pager           | `react-native-tab-view` + `react-native-pager-view` (native)                                                              | `^4.3.4`, `9.0.7`                     |
+| Data            | TanStack Query for all device data; polling via `refetchInterval`                                                         | `^5.102.8`                            |
+| Session state   | Zustand (`useSession`)                                                                                                    | `^5.0.16`                             |
+| UI              | Gluestack UI (Uniwind adapter) + Uniwind classes, lucide icons, FlashList                                                 | `uniwind ^1.3.0`, `flash-list 2.3.2`  |
+| Animation       | Reanimated 4 (React Compiler on: use `.get()`/`.set()`)                                                                   | `4.7.1`                               |
+| XML             | `fast-xml-parser` (`parseTagValue: false`) + `fast-xml-builder`                                                           | `^5.11.1`                             |
+| Lint / format   | Oxlint (type-aware + type-check via `oxlint-tsgolint`), Oxfmt (`printWidth 80`, Tailwind class sort, `package.json` sort) | `^1.90.0`, `^0.75.0`                  |
+
+Scripts: `bun run lint`, `lint:fix`, `fmt`, `fmt:check`, `android`, `prebuild`, `start`.
+
+### Runtime gotchas (learned the hard way)
+
+- **Hermes on the dev build lacks `Array.prototype.toSorted`/`toReversed`** (crash: `undefined is not a function`). Use `[...arr].sort()`; `unicorn/no-array-sort` and `no-array-reverse` are off for this reason.
+- **React Compiler is on**: never write Reanimated `sharedValue.value`; use `.set()` / `.get()`.
+- **Uniwind types `Switch`'s `className` as `never`**: size the Gluestack `Switch` via `style`.
+- **Wire values are strings** (`parseTagValue: false`); each route coerces with `num`/`flag`/`str` from `src/api/utils`. Implicit coercion used to eat leading zeros in phone numbers.
+- **SMS text contains HTML character references** (`/` arrives as `&#x2F;`); `decodeHtmlEntities` runs in the SMS normalizer.
+- **All XML responses are `Content-Type: text/html`**; parse the body, never branch on the content type.
+- **XHR has a 10 s timeout** (`xhrRequest`); the sign-in reachability probe uses 4 s.
+- **Stale Metro bundles** show up as `undefined is not a function` right after edits; restart with `bunx expo start --clear` before assuming a code bug.
+
+---
+
+## Architecture
+
+### Routes (`src/app/`)
+
+```
+_layout.tsx              providers, SplashScreenController, RootNavigator:
+                         Stack.Protected guard on status === "connected"
+sign-in.tsx              available while not connected (SignInScreen)
+(app)/                   available while connected
+  _layout.tsx            HiLinkProvider (client context) + SmsNotifier + Stack
+                         (animation: slide_from_right)
+  (tabs)/_layout.tsx     TopTabs, tabBarPosition "bottom", custom TabBar,
+                         lazy + lazyPreloadDistance 1
+  (tabs)/index.tsx       Home: Header, HeroCard, UsageStats (battery + data rings)
+  (tabs)/devices.tsx     DeviceList
+  (tabs)/sms.tsx         SmsList
+  (tabs)/settings.tsx    device + connection info, sign out
+  conversation/[phone].tsx  ThreadView, full screen above the tabs
+  data-plan.tsx          Phase 6 WIP: DataPlanEditor
+```
+
+Signing in/out only flips the session status; the guards redirect. No manual navigation in auth code.
+
+### Session and auth
+
+- **`src/hooks/useSession.ts`** (Zustand): `status` (`hydrating` → `signedOut` | `connecting` → `connected`), `restoring` (holds the splash during the startup reconnect, max 4 s), `credentials` (last known-good, in `expo-secure-store` keys `mifi.baseUrl`/`mifi.username`/`mifi.password`), `draft` (last attempted), `client`, typed `error` (`credentials` | `blocked` | `network` | `other`), cached `deviceName` (`mifi.deviceName`). Actions: `signIn` (connects first, persists only on success), `retry`, `signOut` (best-effort device logout). A generation counter drops superseded attempts. `hydrate()` runs on import.
+- **`src/api/main.ts` `HiLinkClient`**: `connect()` (warm `state-login` gate, else home-page CSRF scrape + login), `isReachable()` (unauthenticated probe), token pool per Salamek (GET attaches a token only when one remains; POST responses refill), single-flight `loginOnce()`, one retry on `125001/2/3`. **Login rejections latch**: after `108001/2/6`, `108007` or `115002` the client never logs in again and fires `onLoginRejected`. `close()` stops a replaced client; `logout()` is best-effort.
+- **`src/hooks/HiLinkProvider.tsx`**: provides the client to `(app)`; renders nothing without one; removes device queries from the cache on unmount (keeps `["probe", …]`).
+- **`components/auth/SignInScreen.tsx`**: device reachability card, password-first form (username/address under a toggle), per-error messages, auto-retry once the MiFi becomes reachable **only with known-good credentials**.
+
+### API (`src/api/`)
+
+- `routes/monitoring.ts`: `getMonitoring(client, "status" | "traffic-statistics" | "month_statistics" | "start_date")` via a coercion table; `setDataPlan` (POST `start_date`, Salamek field order).
+- `routes/device.ts` (`information`, `reboot`), `routes/dialup.ts` (`setMobileData`), `routes/net.ts` (`getCurrentPlmn`), `routes/lan.ts` (`getLanHosts`, `splitHostAddresses`), `routes/sms.ts` (`getSmsList`, `fetchAllSms`, `getSmsCount`, `setSmsRead`, `deleteSms`, `sendSms`).
+- `errors/index.ts`: code sets, `NETWORK_ERROR_CODE`, `SESSION_CLOSED_CODE`, `isLoginRejection`.
+- `utils/`: `num`/`flag`/`str`, `decodeHtmlEntities`, `formatBytes`, `parseDataLimit`, `formatNetRate`, date helpers (`formatListTime`, `formatDayLabel`, `formatClockTime`, `formatDuration`, …), `xhrRequest` (Cookie-header workaround: RN `fetch` drops `Cookie`).
+
+### Queries
+
+| Key              | Source                                     | Poll                | Used by                                       |
+| ---------------- | ------------------------------------------ | ------------------- | --------------------------------------------- |
+| `["status"]`     | `monitoring/status`                        | 8 s                 | Header, HeroCard, BatteryRingCard, DeviceList |
+| `["traffic"]`    | `monitoring/traffic-statistics`            | 2 s                 | HeroCard (live rates)                         |
+| `["device"]`     | `device/information`                       | 60 s                | HeroCard, Settings                            |
+| `["plmn"]`       | `net/current-plmn`                         | 60 s                | HeroCard carrier                              |
+| `["month"]`      | `monitoring/month_statistics`              | 30 s                | DataRingCard                                  |
+| `["plan"]`       | `monitoring/start_date`                    | stale 5 min         | DataRingCard, Settings, DataPlanEditor        |
+| `["hosts"]`      | `lan/HostInfo`                             | 30 s                | DeviceList                                    |
+| `["sms","all"]`  | `fetchAllSms` inbox then sent (sequential) | 10 s                | SmsList, ThreadView, SmsNotifier              |
+| `["probe", url]` | `HiLinkClient.isReachable`                 | 3 s until reachable | SignInScreen                                  |
+
+Shared query hooks: `useHiLinkQuery` (injects the client), `useAllSms`, `useDataPlan` / `useMonthStatistics` (`src/hooks/useDataUsage.ts`).
+
+### UI building blocks
+
+- `components/TabBar.tsx`: floating pill; highlight follows the pager `position`; `useTabBarClearance()` gives the bottom padding for tab pages.
+- `src/hooks/useAppColors.ts`: JS mirror of `global.css` tokens as `rgb(...)` strings (keep in sync by hand).
+- `components/sms/`: `SmsList`, `ThreadView`, `SenderAvatar`, pure selectors in `threads.ts` (`groupThreads`, `filterThreads`, `threadMessages`, `isOutgoing`).
+- `src/notifications/`: `SmsNotifier` (local notification per thread with new unread SMS; tap opens `/conversation/[phone]`).
+- Design reference: `assets/ui-frame.png` (dark, rounded cards, blue accent). Gluestack primitives in `components/ui/*`.
 
 ---
 
 ## Device facts (Huawei E5576-320)
 
-Confirmed via direct curl testing in-session:
+Firmware `11.0.1.1(H697SP11C00)`, WebUI `11.0.1.1(W11SP6C03)`. Full captured endpoint shapes: [`p-docs/webui-endpoints.md`](./p-docs/webui-endpoints.md). Protocol background: [`p-docs/salamek-reference.md`](./p-docs/salamek-reference.md).
 
-- Firmware `11.0.1.1(H697SP11C00)`, WebUI `11.0.1.1(W11SP6C03)`.
-- `GET /api/webserver/SesTokInfo` returns `<response><SesInfo>...</SesInfo><TokInfo>...</TokInfo></response>` with **no `Set-Cookie` header** — body-only session, pre-login.
-- **Cookie name bug:** the device expects cookie name `SessionID`, NOT `SesInfo`. `<SesInfo>` is just the XML tag name; the value must be sent as `Cookie: SessionID=<value>`. `SesInfo=` causes every authenticated call to fail.
-- **Login is mandatory** before any protected endpoint. Confirmed via `GET /api/user/state-login` returning `State: -1` and `password_type: 4` pre-login.
-- **`Referer: http://192.168.8.1/html/home.html` header is required** on the login POST (and likely other authenticated calls).
-- **Password hashing** (`password_type: 4`), confirmed against 3 independent sources (Python `huawei-lte-api`, the device's frontend JS, a Rust reimplementation):
-  ```
-  innerHash    = base64( hex( sha256(password) ) )
-  finalPassword = base64( hex( sha256(username + innerHash + token) ) )
-  ```
-  base64-encodes the **hex string as ASCII text**, not the raw digest bytes.
-- **On successful login**, the device:
-  - Sends a real `Set-Cookie: SessionID=...` header with a **different value** than the pre-login manually-built cookie. Client must switch to this new cookie for all subsequent requests.
-  - Returns a **pool of ~30 one-time-use tokens** in the `__RequestVerificationToken` header, `#`-delimited. The first two are also duplicated individually as `__RequestVerificationTokenone` / `__RequestVerificationTokentwo` (legacy). **Read the full pool from `__RequestVerificationToken`, not from `one`/`two`** (those only contain a single token each).
-  - Each authenticated request should consume the **next** token from the pool, not reuse one repeatedly.
-- **Error codes (live-tested):**
-  - `125002` = wrong/missing session or CSRF token.
-  - `125003` = "WRONG SESSION TOKEN" specifically.
-  - `108001` = wrong username (login failure — NOT a token issue, must not be retried).
-  - `108006` = `LOGIN_USERNAME_OR_PASSWORD_ERROR` (also not retryable).
-  - Only `125001`/`125002`/`125003` should trigger token-refresh-and-retry.
+**Session and login**
 
----
+- The session cookie is `SessionID` (the `<SesInfo>` XML tag name is not the cookie name).
+- Login is mandatory for protected endpoints. `GET /api/user/state-login` works **unauthenticated** (`State: -1`, `password_type: 4` pre-login); the sign-in probe relies on this. `sms-count` also answers unauthenticated.
+- Login flow: GET `/` → scrape `<meta name="csrf_token">` tokens + `Set-Cookie: SessionID` → POST `user/login` with the first token. Some firmware doesn't re-issue `Set-Cookie` on login; keep the home-page cookie then.
+- Password hash (`password_type: 4`): `base64(hex(sha256(username + base64(hex(sha256(password))) + token)))`, base64 of the **hex string**.
+- `Referer` is required on login. The client sends `<baseUrl>/html/home.html` (the web UI itself sends `/html/content.html`); confirmed working.
+- Token pool after login: observed size 2 on this device. The client follows Salamek: prefer `__RequestVerificationTokenone`+`two`, fall back to the `#`-delimited `__RequestVerificationToken`.
+- **The device keeps one session.** Two clients logging in independently invalidate each other's `SessionID` (this caused SMS fetch races and is why replaced clients are closed).
 
-## Current file layout
+**Error codes**
 
-```
-.env                          # EXPO_PUBLIC_MODEM_URL / _USERNAME / _PASS
-src/
-  api/
-    constants/index.ts        # BASEURL, USERNAME, PASS from env; REFERER constant
-    errors/index.ts           # HiLinkError class, isErrorResponse(), TOKEN_ERROR_CODES
-    types/index.ts            # SessionTokenResponse, DeviceErrorResponse, MonitoringStatus, TrafficStats, DeviceInfo
-    main.ts                   # HiLinkClient class — core client (login + request methods + public endpoints)
-    utils/crypto.ts           # encodePassword() — Huawei password_type:4 hash scheme
-    utils/xhr.ts              # Thin fetch-shaped wrapper around XMLHttpRequest (Cookie-header workaround)
-  hooks/HiLinkProvider.tsx    # Context provider; connects client once, exposes useHiLinkClient()
-  app/_layout.tsx             # Root: QueryClientProvider > HiLinkProvider > GluestackUIProvider > Stack
-  app/index.tsx               # Renders <Test /> inside gluestack Box/Center/VStack
-components/test.tsx           # Minimal proof-of-concept screen; useQuery(['status'], client.getStatus, refetchInterval: 8000)
-```
+| Code                           | Meaning                                            | Handling                                                    |
+| ------------------------------ | -------------------------------------------------- | ----------------------------------------------------------- |
+| `125001`/`125002`/`125003`     | token/session invalid                              | one shared re-login, retry once                             |
+| `108001` / `108002` / `108006` | wrong username / password / either                 | **never retry**; show on the form                           |
+| `108007`                       | too many attempts (lockout)                        | **never retry**; tell the user to wait                      |
+| `115002`                       | admin password must be changed first               | **never retry**; tell the user to change it on the web page |
+| `108003`                       | already logged in                                  | treat as success                                            |
+| `100002`                       | endpoint not supported (e.g. `cradle/status-info`) | skip                                                        |
+
+**Do not brute-force the login.** Every failed attempt counts toward the lockout; the client latches after a rejection so polls can't burn attempts.
+
+**Data**
+
+- `monitoring/status`: `ConnectionStatus 901` = connected; `BatteryStatus 1` = charging; `CurrentWifiUser` / `TotalWifiUser` (limit).
+- `traffic-statistics`: `Current*` = this connection, `Total*` = lifetime, rates in bytes/s. Cycle usage comes from `month_statistics`.
+- `start_date`: `SetMonthData 0` = no plan (this device); `DataLimit` like `"0MB"`/`"20GB"`.
+- `current-plmn` `FullName` is `"MTN"` (`Numeric 62001` = Ghana + MTN).
+- SMS: see [`p-docs/sms-research.md`](./p-docs/sms-research.md) (POST `sms-list` with ordered body, `Count` isn't a total, fetch until an empty page, sequential boxes, alphanumeric sender IDs).
 
 ---
 
-## Open work / blockers
-
-### ~~Immediate blocker: login in-app fails with `125003`~~ — RESOLVED
-
-**Resolution:** Rewrote `triggerLogin()` to follow Salamek's `Session._initialize_csrf_tokens_and_session` flow:
-
-1. GET the HTML home page (`http://192.168.8.1/`). Extract every `<meta name="csrf_token" content="...">` value via regex into the CSRF token pool. Read the real `Set-Cookie: SessionID=...` from the response headers.
-2. POST `/api/user/login` with the home-page cookie, the first pool token, `Referer: http://192.168.8.1/html/home.html`, and the SHA256-hashed password body.
-3. On success, swap the cookie (some firmware variants re-issue `Set-Cookie` post-login, others don't — we now handle both) and atomically rotate the pool from the response headers per Salamek's `refresh_csrf` pattern (prefer `__RequestVerificationTokenone` + `__RequestVerificationTokentwo`, fall back to the full `__RequestVerificationToken`).
-
-The XHR wrapper is also confirmed working — `Set-Cookie` is exposed on Android via `getAllResponseHeaders()`.
-
-**Confirmed working on-device:** the proof-of-concept test screen now displays live `getStatus()` data, polled every 8s, with no 125003 errors. Logs show:
-
-```
-post-login cookie: SessionID=d1eCHAWgeUMwcCWE...
-login set-cookie header: SessionID=d1eCHAWgeUMwcCWE...; path=/; HttpOnly;
-post-login token pool size: 2
-```
-
-…and on a subsequent login (user-triggered refresh), the same `SessionID` is reused because the device didn't re-issue it — the fallback to keep the home-page cookie is what made this work.
-
-### Known-unverified risk (deferred, not urgent)
-
-`tryRefillFromSesTokInfo()` — the fallback that re-hits `SesTokInfo` mid-session to get one fresh token without a full re-login — is **unverified**. Unknown whether `SesTokInfo` called _after_ already being logged in returns a token valid for the existing authenticated cookie, or silently starts an unrelated anonymous pre-login session. Current design falls back to a full `triggerLogin()` if the refill's token doesn't work, so it degrades safely for now (just inefficiently).
-
----
-
-## Reference: `Salamek/huawei-lte-api` (Python reference implementation)
-
-`https://github.com/Salamek/huawei-lte-api` — actively maintained, the **E5576-320 is explicitly listed as tested**. E5576-320 is the _exact_ model this project targets. The Python lib isn't usable as a runtime dep (Metro/bundler polyfill fight), but it's the most authoritative reference for protocol details. Pull from it when something is unclear; do **not** install it.
-
-### Why we keep coming back to it
-
-We are reimplementing the protocol from scratch, and the device firmware is the only spec. The Salamek library is the most thoroughly battle-tested open implementation against that spec, including the E5576-320 family. Any time we hit a behavior we don't understand (e.g. why does the device return `text/html` here, why are tokens being rejected, where do new tokens come from mid-session), Salamek's source is the closest thing to a documented explanation.
-
-### Key file map (paths relative to repo root)
-
-- `huawei_lte_api/Session.py` — request/session core. **The most important file for us.** Contains `_initialize_csrf_tokens_and_session`, `_process_response_data`, `_post`, `_get`, and all CSRF-token rotation logic.
-- `huawei_lte_api/Connection.py` — thin wrapper that parses user/pass out of the URL and instantiates `UserSession`.
-- `huawei_lte_api/api/User.py` — login flow. `_encode_password` is the SHA256 (`password_type: 4`) implementation, byte-for-byte identical to ours; `_login` / `login` show the request body, error-code-to-exception mapping, and the `force_new_login` semantics.
-- `huawei_lte_api/api/WebServer.py` — `webserver/SesTokInfo`, `webserver/token`, `webserver/publickey`. Note: `SesTokInfo` is marked `~Valid for: B310s-22` — i.e. it's a _fallback_ for older devices. Modern firmware exposes a different primary CSRF source.
-- `huawei_lte_api/enums/client.py` — `ResponseCodeEnum`. Maps error codes to names:
-  - `125001` = `ERROR_WRONG_TOKEN` (marked "Unused" in source)
-  - `125002` = `ERROR_SYSTEM_CSRF` ("Session error")
-  - `125003` = `ERROR_WRONG_SESSION_TOKEN` ("Wrong Session Token")
-- `huawei_lte_api/enums/user.py` — `PasswordTypeEnum` and `LoginErrorEnum`:
-  - `password_type: 4` = `SHA256` (confirms our hash scheme)
-  - `108001` = `USERNAME_WRONG`, `108002` = `PASSWORD_WRONG`, `108006` = `USERNAME_PWD_WRONG`
-- `huawei_lte_api/exceptions.py` — the typed exception hierarchy (`ResponseErrorLoginCsrfException`, `ResponseErrorWrongSessionToken`, `LoginErrorUsernamePasswordWrongException`, etc.). Useful as a model for our `HiLinkError` typing.
-
-### Things to learn from this codebase
-
-These are patterns the Salamek lib does that we either don't do, or that confirm assumptions we were unsure about. They are the **highest-priority items** to revisit when something doesn't work as expected.
-
-#### 1. **CSRF tokens are parsed from the device's HTML homepage, not from `SesTokInfo`.**
-
-Salamek's `Session._initialize_csrf_tokens_and_session` does this first:
-
-```python
-response = self.requests_session.get(self.url, timeout=self.timeout)  # GET http://192.168.8.1/
-csrf_tokens = self.csrf_re.findall(response.content.decode("UTF-8"))
-# csrf_re = re.compile(r'name="csrf_token"\s+content="(\S+)"')
-```
-
-It scrapes `<meta name="csrf_token" content="...">` out of the returned HTML and stores _every_ match (the pool). Only if the HTML doesn't contain that meta tag does it fall back to `/api/webserver/token` and then `/api/webserver/SesTokInfo`.
-
-**This is almost certainly the root cause of our `text/html` mystery and the cascading 125003s.** The device _intends_ for clients to start by fetching the HTML home page; that's where the CSRF pool lives. The `text/html` content type on `SesTokInfo` and `login` responses is probably because the device's "you're an unauthenticated client" code path serves the HTML shell and the `__RequestVerificationToken` we get back is a single un-pooled, un-scoped token not valid for the subsequent authenticated session. After login, the device doesn't re-send a fresh token pool header because _it never expected us to come in through `/api/user/login` without first going through the HTML page_.
-
-**Fix path:** in `triggerLogin()`, GET `http://192.168.8.1/` (or `http://192.168.8.1/html/home.html`) first, parse out every `<meta name="csrf_token" content="...">` from the HTML, and use that as the initial `tokenPool`. Then use the `requests` library's session cookies naturally (the `Set-Cookie: SessionID=...` from the HTML response becomes the auth cookie for the subsequent API calls). Only fall back to `SesTokInfo` if no `csrf_token` meta tags are found in the HTML.
-
-This is a single, focused change and is almost certainly the right next step.
-
-#### 2. **The `requests` library's session cookie jar is the auth cookie source.**
-
-Salamek uses `requests.Session` and lets the `Set-Cookie: SessionID=...` from one response be auto-attached to the next. We instead manually build the `SessionID=<sesInfo>` cookie and try to swap it. The Python approach is simpler and more robust: let XHR's cookie store handle it. (RN's `XMLHttpRequest` _does_ persist cookies across requests to the same origin in the same session — we just aren't using it because we're hand-rolling the `Cookie` header.)
-
-**Consider switching** to a "no manual Cookie header" model once the home-page-CSRF-scrape fix is in. Keep the manual approach as fallback.
-
-#### 3. **The login request body uses `application/xml` content-type, not `text/xml`.**
-
-Salamek's `_post`:
-
-```python
-else:
-    headers["Content-Type"] = "application/xml"
-```
-
-Our code sends `Content-Type: text/xml; charset=UTF-8` (in both the login POST and the generic `request<T>` method). The device may be picky about this — `application/xml` is the IANA-registered media type for XML; `text/xml` is the legacy subtype. The current behavior is _probably_ tolerated by the device, but if content-type negotiation is ever the issue, switch to `application/xml`.
-
-#### 4. **Response data handling: `text/html` is _not_ a fatal error — Salamek sniffs the body.**
-
-`_process_response_data`:
-
-```python
-# Others are not conclusive, e.g. text/html may have JSON or XML
-# Resort to content sniffing if Content-Type wasn't conclusive
-if is_json is None and data and data[0:1] in (b"{", b"["):
-    is_json = True
-```
-
-It explicitly notes that `text/html` content-type can wrap JSON or XML bodies, and falls back to content sniffing. Our code blindly trusts the parsed-XML shape, which is why a 91-byte HTML page silently passes the `isErrorResponse()` check. If we keep the current parsing approach, at least add an early bail: if the response body doesn't start with `<` or `{`, throw a clear "device returned unexpected content" error.
-
-#### 5. **Login uses `refresh_csrf=True` to atomically rotate the token pool.**
-
-Salamek's `_login` calls `self._session.post_set("user/login", ..., refresh_csrf=True)`, and inside `_post`:
-
-```python
-if refresh_csrf:
-    self.request_verification_tokens = []
-if "__RequestVerificationTokenone" in response.headers:
-    self.request_verification_tokens.append(response.headers["__RequestVerificationTokenone"])
-    if "__RequestVerificationTokentwo" in response.headers:
-        self.request_verification_tokens.append(response.headers["__RequestVerificationTokentwo"])
-elif "__RequestVerificationToken" in response.headers:
-    self.request_verification_tokens.append(response.headers["__RequestVerificationToken"])
-```
-
-So the official logic is: **clear the pool, then refill it from `one` + `two` (legacy), falling back to the full `__RequestVerificationToken` header (modern).** This is the _opposite_ of what our session summary and previous diagnosis concluded! Salamek uses `one`/`two` as the primary source and the full header as the fallback. This may be because newer firmware changed the header convention, or because different firmware variants use different ones.
-
-**Implication:** our code reads only `__RequestVerificationToken` (correct for newer firmware), but if E5576-320's specific firmware returns `one`/`two` only, we miss the pool entirely.
-
-**Check:** log the entire response header block on login and see which of `__RequestVerificationToken` / `__RequestVerificationTokenone` / `__RequestVerificationTokentwo` are actually present. The recent logs showed only `__RequestVerificationToken` (single value, not pool), which is consistent with "device served an HTML/redirect page and that header is just the unauthenticated token" — but if the home-page scrape fix works, we'll see the real pool on login. Read all three headers, prefer the full one, fall back to `one`+`two` joined — match Salamek's logic exactly.
-
-#### 6. **ConnectionError retry on `state-login`.**
-
-Salamek's `User._state_login_with_retry`:
-
-```python
-# Some models reportedly close the connection if we attempt to access login state
-# too soon after setting up the session etc. In that case, retry a few times.
-# The error is reported to be
-# ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
-```
-
-If we ever see the connection drop on the first call to `/api/user/state-login` (or similar) right after session init, this is a known firmware quirk — add a small `(i + 1) / 10`-style backoff and retry up to 5 times. Deferred unless it actually happens.
-
-#### 7. **Encryption mode is opt-in, not the default.**
-
-Salamek has full RSA encryption support (`encrypt_transmit` header, `application/x-www-form-urlencoded; charset=UTF-8;enc` content-type, `webserver/publickey` + `user/state-login` `rsapadingtype` lookup) but the default is plain XML. Our implementation has no encryption path yet — that's fine, the device accepts plain XML and that's what the AI Life app uses too. If the firmware ever rejects our login for no clear reason, encryption is the next thing to try.
-
-### When to come back to this section
-
-Any time we hit one of these signals: `text/html` content-type on an `/api/*` call, CSRF/session errors after a successful login, 125003 in particular, or anything where the device's behavior doesn't match the spec we've inferred from curl. Open the Salamek file, find the relevant function, see what they do differently. The answer is almost always there.
-
-### Deferred features
-
-- Real UI/UX, navigation flow, Settings screen (device IP/credentials — currently hardcoded in `.env`).
-- SMS reading (`getSmsList` was scoped but not implemented in the current rewritten version).
-- USSD.
-- Push notifications.
-- Zustand store for settings (planned for the Settings screen — genuine multi-reader runtime state).
-- `expo-secure-store` for credentials (planned for the Settings screen).
-- Resolving the `tryRefillFromSesTokInfo()` unverified behavior (degrades safely; not blocking).
-- ~~Confirming whether the XHR swap actually fixes the 125003 login bug~~ — **done, confirmed working.**
-
-### Active work: SMS feature — v1 read list SHIPPED; fetch-all rework (2026-09-13) needs on-device verification
-
-Status: read-only inbox list with contact grouping, search, and thread view shipped and verified on-device. After it shipped, "some contacts/messages don't show" persisted through several fix iterations; the SMS flow was **restructured from scratch on 2026-09-13** to a fetch-all architecture. Needs on-device verification before marking resolved.
-
-**The 2026-09-13 rework (this is the current architecture):**
-
-- **Root cause of the persistent "not showing":** our pagination trusted the response `Count` as a box total. Re-reading the Salamek reference (`get_messages()`) shows `Count` is only ever checked for **zero** — its semantics (per-page / remaining / global) are undocumented and we must not paginate on it. Our `Count > fetched → keep going` logic requested out-of-range pages, which the device answers with errors; one such error then replaced the whole screen (`if (error)` before rendering data). Two failure modes from one wrong assumption.
-- **New shape:** one "fetch everything" pipeline instead of four infinite queries:
-  - `src/api/routes/sms.ts` → `fetchAllSms(client, boxType, pageSize=50, maxPages=200)`: pages with `getSmsList` until an **empty page** (Salamek's exact loop), applies the 10s multipart-age guard at the boundary, and treats a mid-loop page error as non-fatal (returns what it fetched + the error).
-  - `src/hooks/useAllSms.ts` → THE one SMS hook. Single query key `["sms","all"]`: `Promise.all(fetchAllSms(inbox), fetchAllSms(sent))`, merged + sorted ascending by device date; 30s `refetchInterval`; returns `{ messages, inboxCount, sentCount, pages, error }` where `error` is a _partial_ failure (loop stopped early), never a thrown one.
-  - `components/sms/threads.ts` → pure selectors over the full set: `groupThreads` (was `groupByPhone`), `filterThreads`, `threadMessages(messages, phone)`, `phonesMatch` (last-9-digits normalization).
-  - `components/sms/SmsList.tsx` / `ThreadView.tsx` → thin FlashList renderers over `useAllSms()` + the selectors. **No pagination in the UI at all.** Full-screen error only when nothing loaded; partial failures render as a footer note with the actual error text. List footer also shows fetched counts (`N received · M sent`) as a sanity check against the device's own counts (`sms-count` said LocalInbox=241).
-- **Why this shape:** list and thread read the same query, so "tap → empty detail" is structurally impossible; missing has exactly one meaning (device didn't return it — box coverage); the one pagination surface is a testable loop in a route function, not four `getNextPageParam` heuristics in components. SMS volume is storage-capped (241 messages on-device), so fetch-all is 5 requests/box at 50/page — the right trade at this data size. `useHiLinkInfiniteQuery` is now unused by SMS (dashboard still uses `useHiLinkQuery`).
-
-**Earlier session (v1 read list):**
-
-- `src/api/routes/sms.ts` — `getSmsList` (POST, ordered body, single→array normalization), `getSmsCount`, `setSmsRead`, `deleteSms`, `sendSms`. Types in `src/api/types/sms.ts` (`as const` enums, raw/normalized message + list shapes).
-- `src/hooks/useHiLinkQuery.ts` — added `useHiLinkInfiniteQuery` (client-injected `useInfiniteQuery`, same shape as `useHiLinkQuery`).
-- `components/sms/SmsList.tsx` — owns `["sms","inbox"]`/`["sms","sent"]` queries, infinite scroll, live search (phone OR content), contact grouping via `components/sms/threads.ts` (`groupByPhone`, `filterThreads`). Tap a thread → `/thread/[phone]`.
-- `src/app/thread/[phone].tsx` + `components/sms/ThreadView.tsx` — back chevron + contact header, iMessage-style bubbles (outgoing = `Smstat` 2/3), same dual-box fetch filtered to that phone.
-- `src/app/(tabs)/sms.tsx` — composition-only wrapper.
-
-**Verified on-device (live data):** inbox search filters correctly across multiple keystrokes with no crash; a thread ("MobileMoney") returned its 8 messages; back from a thread returns to the SMS list (not Home).
-
-**Root-cause findings (all three reported bugs were the same underlying issue):**
-
-- Search crash + "No messages with this contact" were both caused by **stale Metro incremental dev bundles** — the module graph went out of sync while files were being edited, so `SmsList`/`ThreadView` loaded a chunk referencing a not-yet-rebuilt `useHiLinkInfiniteQuery` export (`TypeError: undefined is not a function` at the call site). Confirmed by: (a) the unminified bundle showing the export IS present, (b) a clean app reload making both bugs disappear, (c) the crash reproducing on demand right after an edit-and-reload, then not reproducing after a clean restart. **Not a code bug.** Mitigation: if you see `undefined is not a function` in dev, do a clean reload (force-stop the app, or restart Metro with `bunx expo start --clear`) rather than assuming the code is wrong.
-- The one **real** fix this session: wrapped the root in `GestureHandlerRootView` (`src/app/_layout.tsx`) — logcat showed `NativeViewGestureHandler must be used as a descendant of GestureHandlerRootView`, which breaks gesture handling in FlashList/RefreshControl. Also switched root `<Slot />` → `<Stack screenOptions={{ headerShown: false }} />` so the thread screen stacks over the tabs and back returns to the SMS list (Slot unmounted the tabs and reset to Home).
-
-**Confirmed device facts (this session):**
-
-- `GET /api/sms/sms-count` (unauthenticated works): `LocalUnread=73, LocalInbox=241, LocalOutbox=2` at time of testing.
-- SesTokInfo-mid-session token is **rejected** (`125002`) when replayed from outside the app's own session — confirms the PROJECT.md open question. The app's own login flow is unaffected.
-- **Do not brute-force the device login.** The E5576-320 returns `108006` (wrong user/pass) and counts down remaining attempts; too many failures lock you out. The app's credentials live in expo-secure-store, not `.env` (the `.env` values are stale).
-
-**Still queued (not this session):** mark-read/delete from thread, compose/send UI, tab badge (`getSmsCount`), phone-contacts integration for names, drafts/PDU/config.
-
-**Open on-device questions:** MIX_* boxes on E5576-320? `sms-count` keys (saw LocalUnread/LocalInbox/LocalOutbox — exact set unverified across firmware)? `set-read` return shape? Multipart guard timing?
-
-### ~~Active work: dashboard~~ — SHIPPED
-
-Phase 1 dashboard shipped (status/traffic/device cards, tab bar, settings, credentials flow). Remaining dashboard items (throughput chart, device avatars, history layer) deferred; SMS is now the active work (see above).
-
-**Next focus.** Auth + credentials flow is in place. Now we build the actual product surface — a real-time(ish) status dashboard showing battery, traffic, network strength, and other signals from the HiLink API.
-
-**Endpoints available (already wired in `HiLinkClient`):**
-
-- `getStatus()` → `/api/monitoring/status` (ConnectionStatus, SignalIcon, CurrentNetworkTypeEx, etc.)
-- `getTraffic()` → `/api/monitoring/traffic-statistics` (CurrentDownload/Upload, TotalDownload/Upload)
-- `getDeviceInfo()` → `/api/device/information` (DeviceName, SerialNumber, Imei, HardwareVersion, SoftwareVersion)
-- `getSmsList()` → **not yet implemented** in `HiLinkClient`. Will need to be added. Endpoint: `/api/sms/sms-list` (per Salamek `api/Sms.py`).
-
-**Phase 1 — Read-only dashboard (in progress).** Cards showing: connection status + signal bars, network type (LTE/3G/etc.), battery percentage, current download/upload rates (KB/s), total download/upload (MB/GB), device info (model, firmware, IMEI), session Uptime.
-
-**Phase 2 — Actions.** Toggle mobile data (`setMobileData`), reboot, SMS list, send SMS, USSD. Out of scope until Phase 1 is shippable.
-
-**Phase 3 — Real-time updates.** Move from polled `useQuery` (current 8s) to either a tighter poll (2-3s) or a periodic background refetch with skeletons during the transition. The Salamek lib doesn't expose any push/socket mechanism, so polling is the only option. _Defer until Phase 1 is in._
-
-### ~~Active work: credentials and login UI~~ — COMPLETE
-
-All four items in the original "credentials and login UI" plan shipped:
-
-- Credentials moved from `.env` to `expo-secure-store` via `useStoredCredentials` hook.
-- Settings screen at `src/app/settings.tsx` — Card + FormControl + Heading primitives (no VStack nesting).
-- First-run flow: provider renders `<Settings />` inline when no creds are present.
-- Connection-error UX with "Open Wi-Fi settings" + "Edit credentials" buttons.
-- Logout button on the test screen (`components/test.tsx`) — calls `clear()` and routes back to root, which renders Settings via the no-creds branch.
-
-**Known loose end (deferred):** the Settings screen's Save button always redirects to the test screen, even if the password was wrong. The user only sees the failure on the test screen's first poll. Needs a real auth flow that surfaces a credential error from `triggerLogin()` back to the Settings screen, and stays on Settings instead of redirecting on auth failure. Deferred until after Phase 1.
+## Status
+
+| Area             | State                                                                                                                     |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Tooling          | SDK 58, TS 7, Oxlint/Oxfmt; typecheck and lint clean                                                                      |
+| Auth             | Sign-in flow, splash restore, lockout-safe client, sign out — **verified on device**                                      |
+| Home             | Hero card (network, signal, carrier, live rates), battery ring (charging), data ring (cycle usage, plan-aware) — verified |
+| Devices tab      | Connected + previously connected hosts — works, but **some devices are missing** (later)                                  |
+| SMS              | Read-only list + conversation, search, notifications — redesigned UI verified on emulator                                 |
+| Navigation       | Swipeable tabs + conversation above tabs (Phase 5) — committed, verified on the emulator                                  |
+| Data plan editor | WIP (Phase 6)                                                                                                             |
 
 ---
 
 ## Next steps (ordered)
 
-The credentials phase is complete (see "Active work: dashboard" above for status). The next ordered work is the **dashboard phase**, broken into seven steps. Each step is small and shippable on its own; the order is dependency-driven, not "must do all at once."
-
-1. **Decide the layout primitive.** Card grid vs FlatList of rows vs a flex layout. Recommendation: a single-column `VStack` of `<Card>`s, each card = one signal (status, traffic, device, network). Phone screens are narrow; multi-column grids buy little and look cramped.
-2. **Add `getSmsList()` to `HiLinkClient`.** Endpoint: `/api/sms/sms-list`. Returns a paginated XML list per Salamek `api/Sms.py`. Skip rendering for now — just the method on the client.
-3. **Extract a `useHiLinkQuery` wrapper hook.** Today's `useQuery` call is inlined in `components/test.tsx`. Move it to `src/hooks/useHiLinkQuery.ts` so multiple cards can use the same `useQuery` pattern with consistent error/loading states. Tiny abstraction, big readability win.
-4. **Build the `StatusCard` component.** First card in the dashboard. Shows: connection status (text + colored dot), signal strength (bars or % from `SignalIcon`), network type (LTE/3G/5G from `CurrentNetworkTypeEx`). Source: `getStatus()` polled at 8s.
-5. **Build the `TrafficCard` component.** Second card. Shows: current download/upload (KB/s, formatted with `Intl.NumberFormat` or a small `formatBytes` util), total download/upload (MB/GB). Source: `getTraffic()` polled at 8s.
-6. **Build the `DeviceCard` component.** Third card. Shows: device name, model, firmware version, IMEI (truncated, with a "copy" button), serial number. Source: `getDeviceInfo()`. **Polled less frequently** — every 60s — since it barely changes.
-7. **Wire the dashboard to the home screen.** Replace the raw JSON dump in `components/test.tsx` with the three cards. Keep the Logout button. Remove the `<Text>Additional info here</Text>` debug line.
-
-**Deferred (out of Phase 1):**
-
-- Battery percentage (need to verify which endpoint returns it on E5576-320 — likely `/api/monitoring/status` already contains it under a field name we haven't inspected).
-- Session uptime (also in monitoring status, need to inspect actual response shape).
-- SMS list, send SMS, USSD (Phase 2).
-- Real auth error handling (wrong password stays on Settings instead of redirecting — see "Active work" > "Known loose end").
-- Status bar theming (dark mode icons not visible against light backgrounds — see earlier session).
-- `tryRefillFromSesTokInfo()` unverified behavior (correct but wasteful on token exhaustion).
-- Diagnostic `console.log` lines in `triggerLogin()` (keep for now; remove when Phase 1 ships).
+1. **Commit Phase 5** after the owner's device check.
+2. **Phase 6 — data plan as a bottom sheet.** Files above. Change the `data-plan` screen to `presentation: "formSheet"` (Android uses a Material bottom sheet; no nested stack inside it) with suitable `sheetAllowedDetents`; make the **data ring on Home tappable** → `router.push("/data-plan")`; keep the Settings row. Test: save a plan, confirm it shows in the MiFi web UI and the ring switches to "of N GB". `SetMonthData=0` (turning the limit off) is **unverified** on device.
+3. **Phase 7 — docs** (this update) if not already committed.
+4. **SMS iteration** (deferred by the owner until after the above):
+   - `monitoring/check-notifications` as the SMS heartbeat: refetch `["sms","all"]` only when `UnreadMessage` rises; tab badge; warning when `SmsStorageFull=1`.
+   - Notifier fixes: create the Android channel **before** requesting permission (Android 13+ prompt), union the seen set instead of replacing it (partial fetches re-notify old unread), handle cold-start taps (`useLastNotificationResponse`), lighter polling.
+   - Mark read on open, delete, compose/reply (API calls exist). Use long-press menus, not swipe actions (they'd fight the pager).
+5. **Devices:** find why some devices are missing from `lan/HostInfo` (compare with the web UI's device page / `wlan/host-list`); Home devices card; quick actions (mobile data toggle via `setMobileData` + the Gluestack `Switch`).
+6. **Pause polling on off-screen pages** (React Query `subscribed` driven by focus) now that all pager pages stay mounted.
+7. Later: lockout countdown (response field unknown), re-validate the session on app foreground (auth slice E), remove the `console.log`s in `triggerLogin()` (they print the `SessionID`), throughput chart, MCC → country for the carrier label, capture `monitoring/month_used`, try `user/heartbeat` if sessions expire on quiet screens, confirm `tryRefillFromSesTokInfo()` behaviour.
 
 ---
 
@@ -349,3 +216,24 @@ The credentials phase is complete (see "Active work: dashboard" above for status
 - **2026-09-13 (later) — Two SMS fixes from first on-device fetch-all run.** (1) **Alphanumeric sender IDs** (telecom/bank names — no digits) were digit-stripped to `""` by the last-9 normalizer, merging every named sender into ONE phantom thread. This was the dominant cause of "most contacts missing" all along. `normalizePhone` now keys digit-poor senders by raw name (lowercased); numbers keep last-9 grouping. (2) **Intermittent footer errors:** both boxes were fetched with `Promise.all`, but the device has a single auth session and a 2–3 token CSRF pool — concurrent page loops interleave token rotation/re-login and a re-login rotates the `SessionID` cookie out from under the other loop. Boxes now fetch sequentially in `useAllSms`. Both documented in `p-docs/sms-research.md` addendum.
 - **2026-09-13 — Parser boundary fix + SMS fetch-all rework.** Two root causes found and fixed after days of "some contacts/messages don't show": (1) `fast-xml-parser`'s implicit `strnum` coercion was silently destroying data at the transport boundary — `<Phone>0241234567</Phone>` arrived as `241234567` (leading zero eaten), all-digit `<Content>` (OTP codes) arrived as numbers and crashed `toLowerCase` in search. Fix: `parseTagValue: false` in `HiLinkClient`'s parser (wire is strings; routes coerce explicitly via new `num`/`flag`/`str` helpers in `src/api/utils`), with per-endpoint coercion maps in `routes/monitoring.ts` and raw `*Raw` type aliases in `types/{monitoring,traffic,device}.ts`. Phone grouping fixed to last-9-digits in `threads.ts` (`+233…`/`233…`/`0…` now one thread). (2) Pagination trusted the response `Count` as a box total — re-reading Salamek's `get_messages()` shows `Count` is only checked for zero; its real semantics are undocumented. Our `Count > fetched` logic requested out-of-range pages, the device errored, and the UI (`if (error)` before data) replaced the whole screen with a perpetual error. Fix: restructured the SMS flow to fetch-all — `fetchAllSms()` page-loop in `routes/sms.ts` (stop on empty page, 10s multipart guard, per-page errors non-fatal), single `useAllSms` hook (key `["sms","all"]`, both boxes merged, 30s poll), pure selectors in `threads.ts`, and `SmsList`/`ThreadView` reduced to thin FlashList renderers with no UI pagination. List and detail share one query so they can't disagree. Also: full datetime display in threads (`formatFullDateTime`), empty-content placeholder for pending multipart parts, and `HiLinkError` now includes the error **code** when the device sends no `<message>`. _Needs on-device verification:_ contacts/messages completeness; if still incomplete, next diagnostic is per-box coverage (SIM/MIX boxes) via a dev debug screen.
 - **2026-09-03 — SMS research consolidated.** Re-fetched `Salamek/huawei-lte-api` (`Sms.py`, `enums/sms.py`, `Tools.py`) and `Salamek/huawei-lte-api-ts` (`Sms.ts`, `Connection.ts`) and wrote up the full findings in [`p-docs/sms-research.md`](./p-docs/sms-research.md): endpoint table, POST-body field order, single→array normalization, date format, multipart guard, enum values, client/UI phase slices, on-device open questions. _Unblocks:_ the next session can start implementing SMS with zero re-research. Also trimmed README to ~20 lines.
+- **2026-11-03 — SDK 58, TypeScript 7, Oxlint/Oxfmt.** Upgraded Expo 57 → 58 (React 19.3, RN 0.88, gesture-handler 3, Reanimated 4.7), TypeScript 6 → 7 (excluded from `expo install` checks). Replaced ESLint with Oxlint (type-aware, `typeCheck`) and added Oxfmt. Removed `components/test.tsx`. Set app identifiers (`com.ddonne.mificontroller`), added `css.d.ts`.
+- **2026-11-03 — Lint cleanup and SDK 58 fixes.** Tab bar adapted to Expo Router 58 props (`emitter`/`navigateToTab`; the old `navigation` prop would have crashed). `Referer` now comes from the stored base URL (it read `EXPO_PUBLIC_MODEM_URL`, undefined without `.env`). No sync `setState` in effects; Reanimated `.get()`/`.set()`; `useAppColors` stores `rgb()` strings. Hermes lacks `toSorted` — reverted to `sort` on copies.
+- **2026-11-03 — SMS notifications.** `SmsNotifier` posts a local notification per thread with new unread SMS; tap opens the thread. Known issues listed in Next steps.
+- **2026-11-03 — Auth flow.** Zustand session store replaced `useStoredCredentials` (per-instance state never reached the provider). Protected routes (`sign-in` vs `(app)`), splash held during reconnect, sign-in screen with reachability probe and per-error messages, lockout-safe client (rejection latch, closed replaced clients, best-effort logout, `115002`), 10 s XHR timeout. Settings tab shows device/connection info + sign out.
+- **2026-11-03 — Web UI endpoints captured.** A HAR of the device web UI gave confirmed shapes for `current-plmn`, `check-notifications`, `month_statistics`, `start_date`, `lan/HostInfo`, `pin/status` and transport headers: [`p-docs/webui-endpoints.md`](./p-docs/webui-endpoints.md).
+- **2026-11-03 — Usage, carrier, devices.** API routes for those endpoints. Data ring fixed (it showed lifetime `TotalDownload` against a made-up 5 GB; now cycle download + upload, capped only when a plan is set). Carrier from `current-plmn`. Devices tab lists connected and previously connected hosts.
+- **2026-11-03 — SMS redesign.** Avatar rows, unread emphasis, short timestamps, search with clear, day separators, grouped bubbles, send status, selectable text. Fixed `&#x2F;` in SMS text (HTML entity decoding) and failed sends shown as received.
+- **2026-11-03 — Swipeable tabs (staged, Phase 5).** `expo-router/js-top-tabs` with the bar at the bottom; tab highlight follows the swipe; conversation full-screen above the tabs at `/conversation/[phone]` with a slide-in. Needs the dev build with `react-native-pager-view`. Commit message:
+  ```
+  feat(nav): swipeable tabs with sliding indicator; conversation above tabs
+
+  - Tabs use expo-router/js-top-tabs (react-native-tab-view +
+    react-native-pager-view) with the bar at the bottom: swipe between
+    pages, lazy with neighbors preloaded
+  - Floating tab bar highlight follows the pager position; tabs cross-fade
+    icon and label by swipe progress
+  - Conversation opens full-screen above the tabs at /conversation/[phone]
+    with a slide-in, matching Telegram/Truecaller-style flows
+  - Home content clears the floating bar
+  ```
+- **2026-11-03 — Docs restructure.** `PROJECT.md` rewritten as a resume-ready tracker; Salamek reference moved to [`p-docs/salamek-reference.md`](./p-docs/salamek-reference.md); `p-docs` trackers and README updated.

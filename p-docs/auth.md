@@ -34,4 +34,21 @@ Our `request()` sends a token on every GET and burns one each time. 4. **Pool re
 ## Plan
 
 A → D → B → C → E. A+D fix both reported symptoms; B+C harden; E is polish.
-See `PROJECT.md` Active work for status.
+
+## Status (2026-11-03)
+
+- **A. Transport — done.** `pickToken()` follows Salamek (GETs attach a token only when one remains; POSTs consume down to one, then reuse it); POST responses refill the pool.
+- **B. state-login gate + typed login errors — done.** `ensureLoggedIn()` skips login when `State` is `0`. Errors map to `credentials` / `blocked` / `network` / `other` in `useSession`, each with its own message on the sign-in screen. Added `115002` (password change required).
+- **C. Single-flight + retry cap — done.** `loginOnce()` shares one login; a token error retries the request once.
+- **D. Credential fan-out — done.** Zustand `useSession` replaced `useStoredCredentials`. Credentials are saved only after the device accepts them.
+- **E. Warm reconnect on foreground — open.**
+
+Added beyond the plan:
+
+- **Rejection latch:** after `108001/2/6`, `108007` or `115002` the client never logs in again and fires `onLoginRejected`, so polling can't burn lockout attempts. The session returns to the sign-in screen with the error.
+- **One device session:** a replaced client is `close()`d first so it can't re-login with stale credentials. Sign-out calls `user/logout` best-effort (never logs in just to log out).
+- **Protected routes:** `sign-in` vs `(app)` guarded on `status === "connected"`; splash held during the startup reconnect (max 4 s).
+- **Reachability probe:** unauthenticated `user/state-login` (4 s timeout) shows whether the MiFi is reachable before any login attempt; auto-retry when it becomes reachable, **only with known-good credentials**.
+- **`Referer`** comes from the stored base URL (`/html/home.html`), not `.env`. `.env` is no longer read.
+
+Open: lockout countdown (the response field holding remaining attempts / wait time is unknown); `console.log`s in `triggerLogin()` print the `SessionID` and should go.
