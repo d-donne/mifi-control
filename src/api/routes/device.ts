@@ -1,5 +1,6 @@
 import type { HiLinkClient } from "../main";
 import type { DeviceInfo, DeviceInfoRaw } from "../types";
+import { decodeHtmlEntities, str } from "../utils";
 
 export interface DeviceEndpoints {
   information: DeviceInfo;
@@ -17,8 +18,14 @@ export async function getDevice<K extends keyof DeviceEndpoints>(
   const res = await client.requestAs<{
     response: DeviceEndpointsRaw[K];
   }>(`/api/device/${endpoint}`);
-  // DeviceInfo is all strings — the raw wire object IS the typed shape.
-  return res.response as DeviceEndpoints[K];
+  // The device escapes text fields, e.g. SoftwareVersion "11.0.1.1&#40;…&#41;".
+  const decoded = Object.fromEntries(
+    Object.entries(res.response).map(([key, value]) => [
+      key,
+      decodeHtmlEntities(str(value)),
+    ]),
+  );
+  return decoded as DeviceEndpoints[K];
 }
 
 export async function reboot(client: HiLinkClient): Promise<void> {
