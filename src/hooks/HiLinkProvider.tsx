@@ -14,7 +14,10 @@ import {
   type ReactNode,
 } from "react";
 import Settings from "../app/(tabs)/settings";
-import { useStoredCredentials } from "./useStoredCredentials";
+import {
+  useStoredCredentials,
+  type StoredCredentials,
+} from "./useStoredCredentials";
 
 const ClientContext = createContext<HiLinkClient | null>(null);
 
@@ -22,40 +25,54 @@ interface HiLinkProviderProps {
   children: ReactNode;
 }
 
+interface Connection {
+  credentials: StoredCredentials;
+  client?: HiLinkClient;
+  error?: string;
+}
+
 export function HiLinkProvider({ children }: HiLinkProviderProps) {
-  const { credentials, isLoading: credsLoading, clear } = useStoredCredentials();
-  const [client, setClient] = useState<HiLinkClient | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    credentials,
+    isLoading: credsLoading,
+    clear,
+  } = useStoredCredentials();
+  const [connection, setConnection] = useState<Connection | null>(null);
 
   useEffect(() => {
-    if (!credentials) return;
     let cancelled = false;
-    setError(null);
-    setClient(null);
-    HiLinkClient.connect(
-      credentials.baseUrl,
-      credentials.username,
-      credentials.password,
-    )
-      .then((c) => {
-        if (!cancelled) setClient(c);
-      })
-      .catch((e) => {
-        if (cancelled) return;
-        setError(
-          e instanceof HiLinkError
-            ? `${e.message} (${e.code ?? "unknown code"})`
-            : String(e),
-        );
-      });
+    if (credentials) {
+      HiLinkClient.connect(
+        credentials.baseUrl,
+        credentials.username,
+        credentials.password,
+      )
+        .then((client) => {
+          if (!cancelled) setConnection({ credentials, client });
+        })
+        .catch((e) => {
+          if (cancelled) return;
+          setConnection({
+            credentials,
+            error:
+              e instanceof HiLinkError
+                ? `${e.message} (${e.code ?? "unknown code"})`
+                : String(e),
+          });
+        });
+    }
     return () => {
       cancelled = true;
     };
   }, [credentials]);
 
+  const current = connection?.credentials === credentials ? connection : null;
+  const client = current?.client ?? null;
+  const error = current?.error ?? null;
+
   if (credsLoading) {
     return (
-      <Box className="bg-background flex-1">
+      <Box className="flex-1 bg-background">
         <Center className="flex-1">
           <Text>Loading…</Text>
         </Center>
@@ -70,7 +87,7 @@ export function HiLinkProvider({ children }: HiLinkProviderProps) {
   if (error) {
     const isNetworkError = error.startsWith("Couldn't reach MiFi");
     return (
-      <Box className="bg-background flex-1">
+      <Box className="flex-1 bg-background">
         <Center className="flex-1 px-6">
           <VStack space="md" className="w-full">
             <Text>Connecting to HiLink failed: {error}</Text>
@@ -79,10 +96,7 @@ export function HiLinkProvider({ children }: HiLinkProviderProps) {
                 <ButtonText>Open Wi-Fi settings</ButtonText>
               </Button>
             )}
-            <Button
-              variant="outline"
-              onPress={() => clear()}
-            >
+            <Button variant="outline" onPress={() => clear()}>
               <ButtonText>Edit credentials</ButtonText>
             </Button>
           </VStack>
@@ -93,7 +107,7 @@ export function HiLinkProvider({ children }: HiLinkProviderProps) {
 
   if (!client) {
     return (
-      <Box className="bg-background flex-1">
+      <Box className="flex-1 bg-background">
         <Center className="flex-1">
           <Text>Connecting to HiLink…</Text>
         </Center>

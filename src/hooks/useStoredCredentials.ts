@@ -1,4 +1,3 @@
-// src/hooks/useStoredCredentials.ts
 import * as SecureStore from "expo-secure-store";
 import { useEffect, useState } from "react";
 
@@ -31,20 +30,25 @@ export function useStoredCredentials(): UseStoredCredentials {
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      const [baseUrl, username, password] = await Promise.all([
-        SecureStore.getItemAsync(MIFI_URL_KEY),
-        SecureStore.getItemAsync(MIFI_USERNAME_KEY),
-        SecureStore.getItemAsync(MIFI_PASSWORD_KEY),
-      ]);
-      if (cancelled) return;
-      if (baseUrl && username && password) {
-        setCredentials({ baseUrl, username, password });
-      } else {
-        setCredentials(null);
-      }
-      setIsLoading(false);
-    })();
+    Promise.all([
+      SecureStore.getItemAsync(MIFI_URL_KEY),
+      SecureStore.getItemAsync(MIFI_USERNAME_KEY),
+      SecureStore.getItemAsync(MIFI_PASSWORD_KEY),
+    ])
+      .then(([baseUrl, username, password]) => {
+        if (cancelled) return;
+        setCredentials(
+          baseUrl && username && password
+            ? { baseUrl, username, password }
+            : null,
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setCredentials(null);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
     return () => {
       cancelled = true;
     };
