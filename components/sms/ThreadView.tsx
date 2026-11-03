@@ -1,4 +1,3 @@
-import { useTabBarClearance } from "@/components/TabBar";
 import { Button, ButtonText } from "@/components/ui/button";
 import { HStack } from "@/components/ui/hstack";
 import { Pressable } from "@/components/ui/pressable";
@@ -198,7 +197,6 @@ function BubbleSkeleton({ outgoing }: { outgoing: boolean }) {
 }
 
 export default function ThreadView({ phone }: { phone: string }) {
-  const clearance = useTabBarClearance();
   const all = useAllSms();
   const partialError = all.data?.error;
 
@@ -253,7 +251,7 @@ export default function ThreadView({ phone }: { phone: string }) {
           maintainVisibleContentPosition={{ startRenderingFromBottom: true }}
           contentContainerStyle={{
             paddingHorizontal: 16,
-            paddingBottom: clearance,
+            paddingBottom: 12,
           }}
           ListEmptyComponent={
             <Text className="pt-16 text-center text-sm text-muted-foreground">

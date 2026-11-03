@@ -38,7 +38,10 @@ const ThreadRow = memo(function ThreadRow({ item }: { item: SmsThread }) {
   return (
     <Pressable
       onPress={() =>
-        router.push({ pathname: "/sms/[phone]", params: { phone: item.phone } })
+        router.push({
+          pathname: "/conversation/[phone]",
+          params: { phone: item.phone },
+        })
       }
       accessibilityRole="button"
       accessibilityLabel={`${item.phone}${unread ? `, ${item.unreadCount} unread` : ""}. ${preview}`}

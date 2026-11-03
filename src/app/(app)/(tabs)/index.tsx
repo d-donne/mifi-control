@@ -1,3 +1,4 @@
+import { useTabBarClearance } from "@/components/TabBar";
 import { VStack } from "@/components/ui/vstack";
 import Header from "@/components/dashboard/Header";
 import HeroCard from "@/components/dashboard/HeroCard";
@@ -8,10 +9,17 @@ import { useAppColors } from "@/src/hooks/useAppColors";
 
 export default function Home() {
   const colors = useAppColors();
+  const clearance = useTabBarClearance();
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-      <ScrollView contentContainerClassName="flex-grow pb-6 px-3 pt-2">
+    <SafeAreaView
+      edges={["top"]}
+      style={{ flex: 1, backgroundColor: colors.background }}
+    >
+      <ScrollView
+        contentContainerClassName="flex-grow px-3 pt-2"
+        contentContainerStyle={{ paddingBottom: clearance }}
+      >
         <Header />
         <VStack space="lg" className="">
           <HeroCard />

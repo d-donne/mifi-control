@@ -45,7 +45,7 @@ export function SmsNotifier() {
       (response) => {
         const phone = response.notification.request.content.data?.phone;
         if (typeof phone === "string" && phone.length > 0) {
-          router.push({ pathname: "/sms/[phone]", params: { phone } });
+          router.push({ pathname: "/conversation/[phone]", params: { phone } });
         }
       },
     );
