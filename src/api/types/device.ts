@@ -12,6 +12,8 @@ export interface DeviceInfo {
   HardwareVersion: string;
   SoftwareVersion: string;
   WebUIVersion: string;
+  /** Seconds since the MiFi booted. The firmware exposes no wall clock. */
+  uptime: string;
   MacAddress1: string;
   MacAddress2: string;
   ProductFamily: string;
