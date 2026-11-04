@@ -337,7 +337,6 @@ export class HiLinkClient {
     // re-issue Set-Cookie on /api/user/login, but the home-page cookie
     // is still valid post-login.
 
-    console.log("post-login cookie:", this.cookie);
     console.log("login set-cookie header:", loginRes.headers.get("set-cookie"));
 
     this.tokenPool = extractLoginTokenPool(loginRes);
