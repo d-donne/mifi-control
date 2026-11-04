@@ -24,7 +24,10 @@
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.SYSTEM_ALERT_WINDOW"
-      ]
+      ],
+      "runtimeVersion": {
+        "policy": "appVersion"
+      }
     },
     "web": {
       "output": "static",
@@ -66,6 +69,9 @@
         "projectId": "b37ba01b-7cff-4be1-a7b1-d74bbdbd41e7"
       }
     },
-    "owner": "d-donne"
+    "owner": "d-donne",
+    "updates": {
+      "url": "https://u.expo.dev/b37ba01b-7cff-4be1-a7b1-d74bbdbd41e7"
+    }
   }
 }

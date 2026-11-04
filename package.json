@@ -5,7 +5,7 @@
   "main": "expo-router/entry",
   "scripts": {
     "android": "expo run:android",
-    "clean": "rm -rf node_modules dist .expo expo-env.d.ts android bun.lock ",
+    "clean": "rm -rf node_modules dist .expo expo-env.d.ts android bun.lock",
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
     "ios": "expo run:ios",
@@ -36,6 +36,7 @@
     "expo-splash-screen": "~58.0.13",
     "expo-status-bar": "~58.0.4",
     "expo-system-ui": "~58.0.7",
+    "expo-updates": "~58.0.21",
     "fast-xml-builder": "^1.3.1",
     "fast-xml-parser": "^5.11.1",
     "lucide-react-native": "^1.39.0",
