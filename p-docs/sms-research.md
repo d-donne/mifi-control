@@ -115,9 +115,11 @@ Known issues, to fix in the SMS iteration:
 - Optional: one send (costs credit) to confirm the device keeps our `Date` for sent messages.
 - One received multipart part (`+233245193550`, 2026-09-03) has had empty content since September, so it shows "Message still arriving…" forever.
 
-**Follow-up (same day, after a MiFi restart).**
+**Correction (2026-11-04): the offset depends on the sending network.**
 
-- A message that reached the MiFi while it was rebooting (uptime put the boot at ~14:33 GMT) was stamped `14:29:50`: plain GMT, the SMS centre's time, no +5:30. Messages after boot are +5:30 again (`21:43:20` for 16:13:20 GMT). So the stamp is the MiFi's own clock at receipt, which runs at UTC+5:30 once set; messages delivered before it's set get the SMSC time. Old stamps don't change after a restart. The constant stays; only boot-window messages show 5h30m early.
+- The stamp is the sending SMS centre's timestamp (SCTS) with its zone dropped; the MiFi itself doesn't stamp. Owner's test: a message from an MTN number (`+233245193550`) stamped `08:13:48` arrived at ~02:43 GMT (+5:30); one from a Telecel number (`+233508718928`) stamped `02:42:00` arrived at ~02:42 GMT (+0). Yesterday's "boot window" message from the Telecel number was plain GMT for the same reason, not because of the restart.
+- Rule in `receivedOffsetMin` (`routes/sms.ts`): delivery reports (this SIM's MTN centre) +5:30; Ghanaian numbers by network code, MTN (`24 25 53 54 55 59`) +5:30, others (Telecel `20 50`, AirtelTigo `26 27 56 57`) +0; other full numbers +0 (unknown); sender names and short codes +5:30 (all 71 MoMo and the Ecobank checks).
+- `Sca` is empty on every message (482), so the centre can't be read from the data. A number ported between networks keeps its prefix and would get the wrong offset.
 - `POST host/info` (`Time` `YYYYMMDDHHMMSS`, `Timezone` `GMT+0000`, then `Platform`, `PlatformVer`, `Navigator`, `NavigatorVer`; Salamek `Host.info`) is how the web UI hands the device the client's clock. A bare GET answers `100005`. Not used yet: it's unproven whether it moves the UTC+5:30 zone, and testing that costs an SMS.
 
 ## Addendum (2026-11-03): delivery reports
@@ -127,3 +129,4 @@ Sending with the default settings produces a **delivery report** in the inbox: `
 - `useAllSms` keeps reports out of `messages` (they'd show as empty "still arriving" bubbles and trigger notifications) and returns them as `reports`.
 - `deliveryByIndex` matches each report to the latest sent message to that number at or before it (1 min slack for the two clocks). The thread shows "Delivered" under the latest outgoing message and "Not delivered" on any failure.
 - Reports are marked read with their conversation (otherwise they hold up `UnreadMessage`) and deleted with it.
+- The MiFi dropped the two newest reports a few minutes after they arrived (complete fetch, nothing deleted them); older ones stayed. `useAllSms` keeps reports already seen in the session so "Delivered" doesn't disappear.

@@ -31,29 +31,46 @@ export function formatDeviceDate(d: Date = new Date()): string {
   );
 }
 
-// Received SMS are stamped with UTC+5:30 wall-clock time although the network
-// is UTC+0 (measured 2026-11-03, p-docs/sms-research.md). Sent SMS carry the
-// local clock of the app that sent them.
-const RECEIVED_UTC_OFFSET_MIN = 330;
+// A received stamp is the sending SMS centre's wall clock with its zone
+// dropped. MTN's centre (this SIM's network, also used by MoMo, banks and
+// delivery reports) stamps UTC+5:30; other Ghanaian networks stamp UTC+0
+// (measured 2026-11-03/04, p-docs/sms-research.md).
+const MTN_STAMP_OFFSET_MIN = 330;
+const MTN_GH_CODES = new Set(["24", "25", "53", "54", "55", "59"]);
+
+function receivedOffsetMin(phone: string, smsType: number): number {
+  // Delivery reports come from this SIM's own (MTN) centre.
+  if (
+    smsType === SmsTypeValues.DELIVERY_SUCCESS ||
+    smsType === SmsTypeValues.DELIVERY_FAILURE
+  ) {
+    return MTN_STAMP_OFFSET_MIN;
+  }
+  const digits = phone.replace(/[\s-]/g, "");
+  const ghana = /^(?:\+?233|0)(\d{9})$/.exec(digits);
+  if (ghana) {
+    return MTN_GH_CODES.has(ghana[1]?.slice(0, 2) ?? "")
+      ? MTN_STAMP_OFFSET_MIN
+      : 0;
+  }
+  // Foreign numbers: the sending centre's zone is unknown.
+  if (/^\+?\d{10,15}$/.test(digits)) return 0;
+  // Sender names and short codes go through MTN.
+  return MTN_STAMP_OFFSET_MIN;
+}
 
 const DEVICE_DATE = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/;
 
-function smsTime(date: string, received: boolean): number {
+/** `offsetMin` null: the stamp is the phone's local time (sent messages). */
+function smsTime(date: string, offsetMin: number | null): number {
   const match = DEVICE_DATE.exec(date);
   if (!match) return 0;
   const [year, month, day, hours, minutes, seconds] = match
     .slice(1)
     .map(Number) as [number, number, number, number, number, number];
-  return received
-    ? Date.UTC(
-        year,
-        month - 1,
-        day,
-        hours,
-        minutes - RECEIVED_UTC_OFFSET_MIN,
-        seconds,
-      )
-    : new Date(year, month - 1, day, hours, minutes, seconds).getTime();
+  return offsetMin === null
+    ? new Date(year, month - 1, day, hours, minutes, seconds).getTime()
+    : Date.UTC(year, month - 1, day, hours, minutes - offsetMin, seconds);
 }
 
 export function normalizeSmsMessage(raw: RawSmsMessage): SmsMessage {
@@ -61,18 +78,20 @@ export function normalizeSmsMessage(raw: RawSmsMessage): SmsMessage {
   const smstat = toNumber(Smstat);
   const date = raw.Date ?? "";
   const received = smstat === SmstatValues.NEW || smstat === SmstatValues.READ;
+  const phone = decodeHtmlEntities(raw.Phone ?? "");
+  const smsType = toNumber(SmsType);
   return {
     ...rest,
     Index: toNumber(Index),
     Smstat: smstat,
-    Phone: decodeHtmlEntities(raw.Phone ?? ""),
+    Phone: phone,
     Content: decodeHtmlEntities(raw.Content ?? ""),
     Date: date,
-    time: smsTime(date, received),
+    time: smsTime(date, received ? receivedOffsetMin(phone, smsType) : null),
     Sca: raw.Sca ?? "",
     SaveType: toNumber(SaveType),
     Priority: toNumber(Priority),
-    SmsType: toNumber(SmsType),
+    SmsType: smsType,
   };
 }
 
