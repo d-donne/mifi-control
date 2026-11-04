@@ -38,7 +38,7 @@ export function formatDeviceDate(d: Date = new Date()): string {
 const MTN_STAMP_OFFSET_MIN = 330;
 const MTN_GH_CODES = new Set(["24", "25", "53", "54", "55", "59"]);
 
-function receivedOffsetMin(phone: string, smsType: number): number {
+export function defaultOffsetMin(phone: string, smsType: number): number {
   // Delivery reports come from this SIM's own (MTN) centre.
   if (
     smsType === SmsTypeValues.DELIVERY_SUCCESS ||
@@ -62,7 +62,7 @@ function receivedOffsetMin(phone: string, smsType: number): number {
 const DEVICE_DATE = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/;
 
 /** `offsetMin` null: the stamp is the phone's local time (sent messages). */
-function smsTime(date: string, offsetMin: number | null): number {
+export function smsTime(date: string, offsetMin: number | null): number {
   const match = DEVICE_DATE.exec(date);
   if (!match) return 0;
   const [year, month, day, hours, minutes, seconds] = match
@@ -87,7 +87,7 @@ export function normalizeSmsMessage(raw: RawSmsMessage): SmsMessage {
     Phone: phone,
     Content: decodeHtmlEntities(raw.Content ?? ""),
     Date: date,
-    time: smsTime(date, received ? receivedOffsetMin(phone, smsType) : null),
+    time: smsTime(date, received ? defaultOffsetMin(phone, smsType) : null),
     Sca: raw.Sca ?? "",
     SaveType: toNumber(SaveType),
     Priority: toNumber(Priority),

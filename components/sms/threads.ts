@@ -31,7 +31,7 @@ export interface SmsThread {
  * the "most contacts missing" bug). Short codes ("4040") keep their digits
  * and group naturally.
  */
-function normalizePhone(raw: unknown): string {
+export function normalizePhone(raw: unknown): string {
   const s = str(raw).trim();
   const digits = s.replace(/\D/g, "");
   if (digits.length < 2) return s.toLowerCase(); // sender name or unusable

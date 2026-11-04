@@ -130,3 +130,9 @@ Sending with the default settings produces a **delivery report** in the inbox: `
 - `deliveryByIndex` matches each report to the latest sent message to that number at or before it (1 min slack for the two clocks). The thread shows "Delivered" under the latest outgoing message and "Not delivered" on any failure.
 - Reports are marked read with their conversation (otherwise they hold up `UnreadMessage`) and deleted with it.
 - The MiFi dropped the two newest reports a few minutes after they arrived (complete fetch, nothing deleted them); older ones stayed. `useAllSms` keeps reports already seen in the session so "Delivered" doesn't disappear.
+
+## Addendum (2026-11-04): learned per-sender offsets
+
+- No zone is reachable on this firmware: `sms-list` drops the SCTS offset, `api/sms/config` reports `smsisusepdu: 0` (no PDU path seen in the web UI), the web UI never posts `host/info` and itself shows the wrong times. The MTN centre address is `+233244500000`.
+- `src/sms/clock.ts` learns each sender's offset from messages seen arriving: when the previous fetch was under 90 s earlier, a new received message's stamp (read as UTC) minus the fetch time is rounded to 15 min; it's accepted only if the leftover is between −2.5 and +0.5 min (delayed deliveries fall outside) and within ±14 h. Offsets persist in SecureStore (`mifi.smsOffsets`, sender key → minutes) and re-time that sender's whole history.
+- Senders never seen arriving keep the network rule in `defaultOffsetMin`.

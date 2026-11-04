@@ -3,6 +3,12 @@ import { fetchAllSms, getMonitoring, isDeliveryReport } from "@/src/api/routes";
 import { BoxType, Smstat } from "@/src/api/types/sms";
 import { useHiLinkClient } from "@/src/hooks/HiLinkProvider";
 import { useHiLinkQuery } from "@/src/hooks/useHiLinkQuery";
+import {
+  applyOffsets,
+  CONTINUOUS_POLL_MS,
+  learnOffsets,
+  loadOffsets,
+} from "@/src/sms/clock";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 
@@ -37,6 +43,8 @@ export interface AllSms {
  */
 const reportKey = (m: SmsMessage) => `${m.Index}:${m.Date}`;
 
+let lastFetchAt = 0;
+
 export function useAllSms() {
   const client = useHiLinkClient();
   const queryClient = useQueryClient();
@@ -49,12 +57,23 @@ export function useAllSms() {
       // token rotation + re-login, and a re-login rotates the SessionID
       // cookie out from under the other loop — that race was the
       // intermittent "Device returned error" in the footer.
+      await loadOffsets();
       const inbox = await fetchAllSms(client, BoxType.LOCAL_INBOX);
       const sent = await fetchAllSms(client, BoxType.LOCAL_SENT);
+      const received = [...inbox.messages, ...sent.messages];
 
-      const all = [...inbox.messages, ...sent.messages].sort(
-        (a, b) => a.time - b.time,
-      );
+      const fetchedAt = Date.now();
+      const previous = queryClient.getQueryData<AllSms>(ALL_SMS_QUERY_KEY);
+      if (previous && fetchedAt - lastFetchAt < CONTINUOUS_POLL_MS) {
+        learnOffsets(
+          [...previous.messages, ...previous.reports],
+          received,
+          fetchedAt,
+        );
+      }
+      lastFetchAt = fetchedAt;
+
+      const all = applyOffsets(received).sort((a, b) => a.time - b.time);
       const messages = all.filter((m) => !isDeliveryReport(m));
       // The MiFi drops some delivery reports minutes after they arrive
       // (seen 2026-11-04); keep the ones already seen this session.
