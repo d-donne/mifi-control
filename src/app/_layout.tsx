@@ -30,7 +30,7 @@ const queryClient = new QueryClient({
       if (error instanceof HiLinkError && error.code === SESSION_CLOSED_CODE) {
         return;
       }
-      // A failed poll keeps the last data on screen; the Home header flags the outage.
+      // A failed poll keeps the last data on screen; the offline banner flags the outage.
       if (query.state.data !== undefined) return;
       const message = error.message;
       const now = Date.now();

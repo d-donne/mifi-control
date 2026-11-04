@@ -4,20 +4,11 @@ import { Text } from "@/components/ui/text";
 import { formatRelativeTime, getGreeting } from "@/src/api/utils/date";
 import { useAppColors } from "@/src/hooks/useAppColors";
 import { useStatus } from "@/src/hooks/useDeviceStatus";
-import { RefreshCw, WifiOff } from "@/components/icons";
-
-function freshness(updatedAt: number, failing: boolean): string {
-  const updated = updatedAt ? `Updated ${formatRelativeTime(updatedAt)}` : "";
-  if (!failing) return updated || "Connecting…";
-  return updated
-    ? `Can't reach the MiFi · ${updated.toLowerCase()}`
-    : "Can't reach the MiFi";
-}
+import { RefreshCw } from "@/components/icons";
 
 export default function Header() {
   const colors = useAppColors();
-  const { dataUpdatedAt, isError } = useStatus();
-  const Icon = isError ? WifiOff : RefreshCw;
+  const { dataUpdatedAt } = useStatus();
 
   return (
     <Box className="pb-2">
@@ -25,18 +16,11 @@ export default function Header() {
         {getGreeting()}
       </Text>
       <HStack space="xs" className="mt-1 items-center">
-        <Icon
-          size={14}
-          color={isError ? colors.destructive : colors.mutedForeground}
-        />
-        <Text
-          className={
-            isError
-              ? "text-xs text-destructive"
-              : "text-xs text-muted-foreground"
-          }
-        >
-          {freshness(dataUpdatedAt, isError)}
+        <RefreshCw size={14} color={colors.mutedForeground} />
+        <Text className="text-xs text-muted-foreground">
+          {dataUpdatedAt
+            ? `Updated ${formatRelativeTime(dataUpdatedAt)}`
+            : "Connecting…"}
         </Text>
       </HStack>
     </Box>

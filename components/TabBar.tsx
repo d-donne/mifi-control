@@ -1,3 +1,4 @@
+import OfflineBanner from "@/components/common/OfflineBanner";
 import { Pressable } from "@/components/ui/pressable";
 import { Text } from "@/components/ui/text";
 import { useDeviceNotifications } from "@/src/hooks/useAllSms";
@@ -66,6 +67,7 @@ export default function TabBar({
         right: 16,
       }}
     >
+      <OfflineBanner />
       <View className="rounded-full bg-card/95 p-1.5">
         <View
           className="flex-row"
