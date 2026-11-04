@@ -10,6 +10,11 @@ export function isOutgoing(message: SmsMessage): boolean {
   );
 }
 
+/** The MiFi reuses a deleted message's `Index` for the next one that arrives. */
+export function messageKey(message: SmsMessage): string {
+  return `${message.Index}:${message.Date}`;
+}
+
 export interface SmsThread {
   phone: string;
   normalizedPhone: string;
@@ -62,16 +67,21 @@ export function groupThreads(messages: SmsMessage[]): SmsThread[] {
   );
 }
 
+/** Threads whose sender, or any of whose messages, contains `query`. */
 export function filterThreads(
   threads: SmsThread[],
+  messages: SmsMessage[],
   query: string,
 ): SmsThread[] {
   const q = query.trim().toLowerCase();
   if (!q) return threads;
+  const matching = new Set(
+    messages
+      .filter((m) => m.Content.toLowerCase().includes(q))
+      .map((m) => normalizePhone(m.Phone)),
+  );
   return threads.filter(
-    (t) =>
-      (t.phone ?? "").toLowerCase().includes(q) ||
-      (t.lastMessage.Content ?? "").toLowerCase().includes(q),
+    (t) => t.phone.toLowerCase().includes(q) || matching.has(t.normalizedPhone),
   );
 }
 

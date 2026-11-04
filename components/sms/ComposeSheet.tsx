@@ -26,7 +26,7 @@ function ComposeForm({ onClose }: { onClose: () => void }) {
   const insets = useSafeAreaInsets();
   const all = useAllSms();
   const [phone, setPhone] = useState("");
-  const { mutate: send } = useSendSms();
+  const { mutate: send, isPending, error } = useSendSms();
 
   const recipient = phone.replace(/[\s-]/g, "");
   const valid = canReply(recipient);
@@ -105,11 +105,17 @@ function ComposeForm({ onClose }: { onClose: () => void }) {
       )}
 
       <Composer
-        disabled={!valid}
-        onSend={(text) => {
-          send({ phone: recipient, text });
-          openConversation(recipient);
-        }}
+        disabled={!valid || isPending}
+        error={error?.message}
+        onSend={(text, restore) =>
+          send(
+            { phone: recipient, text },
+            {
+              onSuccess: () => openConversation(recipient),
+              onError: restore,
+            },
+          )
+        }
       />
     </VStack>
   );

@@ -23,9 +23,12 @@ export function ensureSmsPermissions(): Promise<boolean> {
   if (!permissionsInFlight) {
     permissionsInFlight = (async () => {
       // Android 13+ only shows the permission prompt once a channel exists.
+      // Android fixes a channel's settings when it's first created.
       await Notifications.setNotificationChannelAsync(SMS_CHANNEL_ID, {
         name: "SMS",
         importance: Notifications.AndroidImportance.HIGH,
+        lockscreenVisibility:
+          Notifications.AndroidNotificationVisibility.PRIVATE,
       });
       const { granted } = await Notifications.requestPermissionsAsync();
       return granted;

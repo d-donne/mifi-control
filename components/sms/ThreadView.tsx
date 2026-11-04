@@ -30,6 +30,7 @@ import {
   canReply,
   deliveryByIndex,
   isOutgoing,
+  messageKey,
   threadMessages,
   type Delivery,
 } from "./threads";
@@ -252,16 +253,15 @@ export default function ThreadView({ phone }: { phone: string }) {
   );
 
   const { mutate: markRead } = useMarkRead();
-  const requestedRead = useRef(new Set<number>());
+  const requestedRead = useRef(new Set<string>());
   useEffect(() => {
-    const unread = [...messages, ...reports]
-      .filter(
-        (m) => m.Smstat === Smstat.NEW && !requestedRead.current.has(m.Index),
-      )
-      .map((m) => m.Index);
+    const unread = [...messages, ...reports].filter(
+      (m) =>
+        m.Smstat === Smstat.NEW && !requestedRead.current.has(messageKey(m)),
+    );
     if (unread.length === 0) return;
-    for (const index of unread) requestedRead.current.add(index);
-    markRead(unread);
+    for (const m of unread) requestedRead.current.add(messageKey(m));
+    markRead(unread.map((m) => m.Index));
   }, [messages, reports, markRead]);
 
   const [actionsFor, setActionsFor] = useState<SmsMessage | null>(null);
@@ -273,7 +273,7 @@ export default function ThreadView({ phone }: { phone: string }) {
     if (messages.length === 1) router.back();
   };
 
-  const { mutate: send } = useSendSms();
+  const { mutate: send, error: sendError } = useSendSms();
 
   const renderItem = useCallback(
     ({ item }: { item: ThreadItem }) =>
@@ -348,6 +348,7 @@ export default function ThreadView({ phone }: { phone: string }) {
       {canReply(phone) && (
         <Composer
           disabled={!all.data}
+          error={sendError?.message}
           onSend={(text, restore) =>
             send({ phone, text }, { onError: restore })
           }

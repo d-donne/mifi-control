@@ -12,10 +12,12 @@ export default function Composer({
   onSend,
   disabled = false,
   autoFocus = false,
+  error = null,
 }: {
   onSend: (text: string, restore: () => void) => void;
   disabled?: boolean;
   autoFocus?: boolean;
+  error?: string | null;
 }) {
   const colors = useAppColors();
   const [text, setText] = useState("");
@@ -31,6 +33,9 @@ export default function Composer({
 
   return (
     <VStack className="gap-1 px-3 pt-1 pb-2">
+      {error && (
+        <Text className="px-3 text-xs text-destructive">Not sent: {error}</Text>
+      )}
       {text.length > 0 && (
         <Text className="px-3 text-[11px] text-muted-foreground">
           {text.length} characters · {segments} SMS

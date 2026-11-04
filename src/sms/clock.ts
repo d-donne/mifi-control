@@ -1,4 +1,4 @@
-import { normalizePhone } from "@/components/sms/threads";
+import { messageKey, normalizePhone } from "@/components/sms/threads";
 import { isDeliveryReport, smsTime } from "@/src/api/routes";
 import { Smstat, type SmsMessage } from "@/src/api/types/sms";
 import * as SecureStore from "expo-secure-store";
@@ -66,11 +66,11 @@ export function learnOffsets(
   fetchedAt: number,
 ): void {
   if (!learned) return;
-  const known = new Set(previous.map((m) => `${m.Index}:${m.Date}`));
+  const known = new Set(previous.map(messageKey));
   let changed = false;
   for (const m of current) {
     if (!isReceived(m) || isDeliveryReport(m)) continue;
-    if (known.has(`${m.Index}:${m.Date}`)) continue;
+    if (known.has(messageKey(m))) continue;
     const offset = measureOffset(m.Date, fetchedAt);
     const key = normalizePhone(m.Phone);
     if (offset === null || !key || learned[key] === offset) continue;

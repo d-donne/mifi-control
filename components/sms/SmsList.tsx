@@ -151,8 +151,8 @@ export default function SmsList() {
     [all.data],
   );
   const visible = useMemo(
-    () => filterThreads(threads, search),
-    [threads, search],
+    () => filterThreads(threads, all.data?.messages ?? [], search),
+    [threads, all.data, search],
   );
   const unreadTotal = useMemo(
     () => threads.reduce((sum, t) => sum + t.unreadCount, 0),

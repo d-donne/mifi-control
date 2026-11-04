@@ -1,3 +1,4 @@
+import { messageKey } from "@/components/sms/threads";
 import type { SmsMessage } from "@/src/api/types/sms";
 import { fetchAllSms, getMonitoring, isDeliveryReport } from "@/src/api/routes";
 import { BoxType, Smstat } from "@/src/api/types/sms";
@@ -31,6 +32,8 @@ export interface AllSms {
   deferred: boolean;
 }
 
+let lastFetchAt = 0;
+
 /**
  * The ONE SMS data hook. Fetches all inbox + all sent messages in a single
  * query (page loop runs to completion inside `fetchAllSms`), merges and
@@ -41,10 +44,6 @@ export interface AllSms {
  * safety net, sped up while a multipart message is being reassembled or a
  * sent message is still pending.
  */
-const reportKey = (m: SmsMessage) => `${m.Index}:${m.Date}`;
-
-let lastFetchAt = 0;
-
 export function useAllSms() {
   const client = useHiLinkClient();
   const queryClient = useQueryClient();
@@ -78,11 +77,11 @@ export function useAllSms() {
       // The MiFi drops some delivery reports minutes after they arrive
       // (seen 2026-11-04); keep the ones already seen this session.
       const reports = all.filter(isDeliveryReport);
-      const fetched = new Set(reports.map(reportKey));
+      const fetched = new Set(reports.map(messageKey));
       const earlier =
         queryClient
           .getQueryData<AllSms>(ALL_SMS_QUERY_KEY)
-          ?.reports.filter((r) => !fetched.has(reportKey(r))) ?? [];
+          ?.reports.filter((r) => !fetched.has(messageKey(r))) ?? [];
 
       return {
         messages,
