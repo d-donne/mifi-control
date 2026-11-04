@@ -32,7 +32,11 @@ export interface AllSms {
   deferred: boolean;
 }
 
-let lastFetchAt = 0;
+let lastFetch: {
+  at: number;
+  messages: SmsMessage[];
+  complete: boolean;
+} | null = null;
 
 /**
  * The ONE SMS data hook. Fetches all inbox + all sent messages in a single
@@ -62,15 +66,17 @@ export function useAllSms() {
       const received = [...inbox.messages, ...sent.messages];
 
       const fetchedAt = Date.now();
-      const previous = queryClient.getQueryData<AllSms>(ALL_SMS_QUERY_KEY);
-      if (previous && fetchedAt - lastFetchAt < CONTINUOUS_POLL_MS) {
-        learnOffsets(
-          [...previous.messages, ...previous.reports],
-          received,
-          fetchedAt,
-        );
+      const complete = !inbox.error && !sent.error;
+      // Compared with the last fetch, not the cache: optimistic deletes and
+      // read marks edit the cache.
+      if (
+        complete &&
+        lastFetch?.complete &&
+        fetchedAt - lastFetch.at < CONTINUOUS_POLL_MS
+      ) {
+        learnOffsets(lastFetch.messages, received, fetchedAt);
       }
-      lastFetchAt = fetchedAt;
+      lastFetch = { at: fetchedAt, messages: received, complete };
 
       const all = applyOffsets(received).sort((a, b) => a.time - b.time);
       const messages = all.filter((m) => !isDeliveryReport(m));

@@ -6,7 +6,9 @@ import * as SecureStore from "expo-secure-store";
 // The MiFi drops the zone of each received stamp (it's the sending SMS
 // centre's), so offsets are learned per sender from messages seen arriving.
 
-const STORE_KEY = "mifi.smsOffsets";
+// v1 learned from old messages that reappeared in a fetch; its values are discarded.
+const STORE_KEY = "mifi.smsOffsets.v2";
+const RETIRED_STORE_KEY = "mifi.smsOffsets";
 const QUARTER_HOUR_MIN = 15;
 const MAX_OFFSET_MIN = 14 * 60;
 // A stamp precedes its arrival by delivery time; anything outside this window
@@ -30,6 +32,7 @@ function parseOffsets(value: unknown): Offsets {
 
 export async function loadOffsets(): Promise<Offsets> {
   if (learned) return learned;
+  void SecureStore.deleteItemAsync(RETIRED_STORE_KEY).catch(() => {});
   try {
     const raw = await SecureStore.getItemAsync(STORE_KEY);
     learned = raw ? parseOffsets(JSON.parse(raw)) : {};
@@ -57,8 +60,8 @@ export function measureOffset(stamp: string, arrivedAt: number): number | null {
 }
 
 /**
- * Learns offsets from received messages that weren't in the previous fetch.
- * Only call when that fetch was under CONTINUOUS_POLL_MS ago.
+ * Learns offsets from messages that arrived since the previous fetch. Only
+ * call when both fetches completed and were under CONTINUOUS_POLL_MS apart.
  */
 export function learnOffsets(
   previous: SmsMessage[],
@@ -67,10 +70,19 @@ export function learnOffsets(
 ): void {
   if (!learned) return;
   const known = new Set(previous.map(messageKey));
+  const newestStamp = new Map<string, string>();
+  for (const m of previous) {
+    if (!isReceived(m) || isDeliveryReport(m)) continue;
+    const key = normalizePhone(m.Phone);
+    if (m.Date > (newestStamp.get(key) ?? "")) newestStamp.set(key, m.Date);
+  }
   let changed = false;
   for (const m of current) {
-    if (!isReceived(m) || isDeliveryReport(m)) continue;
+    if (m.Smstat !== Smstat.NEW || isDeliveryReport(m)) continue;
     if (known.has(messageKey(m))) continue;
+    // An old message missing from the previous fetch (a delete shifted the
+    // pages) isn't an arrival; one sender's centre stamps in order.
+    if (m.Date <= (newestStamp.get(normalizePhone(m.Phone)) ?? "")) continue;
     const offset = measureOffset(m.Date, fetchedAt);
     const key = normalizePhone(m.Phone);
     if (offset === null || !key || learned[key] === offset) continue;

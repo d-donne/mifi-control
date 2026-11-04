@@ -181,10 +181,14 @@ export async function fetchAllSms(
     // with empty Content).
     const now = Date.now();
     for (const m of res.Messages) {
+      // A message that looks far in the future has a wrong default offset;
+      // holding it back would hide it for hours.
+      const age = now - m.time;
       if (
         m.SmsType === SmsTypeValues.MULTIPART &&
         m.time &&
-        now - m.time < 10_000
+        age > -60_000 &&
+        age < 10_000
       ) {
         deferred = true;
         continue;
