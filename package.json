@@ -5,6 +5,8 @@
   "main": "expo-router/entry",
   "scripts": {
     "android": "expo run:android",
+    "build:apk": "eas build --platform android --profile preview --local",
+    "build:cloud": "eas build --platform android --profile preview",
     "clean": "rm -rf node_modules dist .expo expo-env.d.ts android bun.lock",
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
