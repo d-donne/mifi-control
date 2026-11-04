@@ -1,8 +1,8 @@
 import ConfirmDialog from "@/components/common/ConfirmDialog";
+import Placeholder from "@/components/common/Placeholder";
 import { Button, ButtonText } from "@/components/ui/button";
 import { HStack } from "@/components/ui/hstack";
 import { Pressable } from "@/components/ui/pressable";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
 import { Smstat, type SmsMessage } from "@/src/api/types/sms";
@@ -22,7 +22,7 @@ import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
 import { ChevronLeft } from "lucide-react-native";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { KeyboardAvoidingView, RefreshControl } from "react-native";
+import { KeyboardAvoidingView, RefreshControl, View } from "react-native";
 import Composer from "./Composer";
 import MessageActions from "./MessageActions";
 import SenderAvatar from "./SenderAvatar";
@@ -226,7 +226,9 @@ function ThreadHeader({ phone, count }: { phone: string; count?: number }) {
 function BubbleSkeleton({ outgoing }: { outgoing: boolean }) {
   return (
     <VStack className={outgoing ? "items-end" : "items-start"}>
-      <Skeleton className="mt-3 h-14 w-3/5 rounded-2xl" />
+      <View className="mt-3">
+        <Placeholder width={outgoing ? "45%" : "60%"} height={52} radius={18} />
+      </View>
     </VStack>
   );
 }

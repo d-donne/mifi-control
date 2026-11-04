@@ -1,4 +1,5 @@
 import ConfirmDialog from "@/components/common/ConfirmDialog";
+import Placeholder from "@/components/common/Placeholder";
 import { useTabBarClearance } from "@/components/TabBar";
 import { Box } from "@/components/ui/box";
 import { Button, ButtonText } from "@/components/ui/button";
@@ -6,7 +7,6 @@ import { Heading } from "@/components/ui/heading";
 import { HStack } from "@/components/ui/hstack";
 import { Input, InputField, InputSlot } from "@/components/ui/input";
 import { Pressable } from "@/components/ui/pressable";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
 import { formatListTime } from "@/src/api/utils";
@@ -111,10 +111,10 @@ const ThreadRow = memo(function ThreadRow({
 function RowSkeleton() {
   return (
     <HStack className="items-center gap-3 px-3 py-3">
-      <Skeleton className="h-11 w-11 rounded-full" />
+      <Placeholder width={44} height={44} radius={22} />
       <VStack className="flex-1 gap-2">
-        <Skeleton className="h-4 w-2/5 rounded-md" />
-        <Skeleton className="h-3.5 w-4/5 rounded-md" />
+        <Placeholder width="40%" height={14} />
+        <Placeholder width="80%" height={12} />
       </VStack>
     </HStack>
   );

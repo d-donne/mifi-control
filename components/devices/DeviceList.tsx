@@ -1,8 +1,8 @@
+import Placeholder from "@/components/common/Placeholder";
 import { Button, ButtonSpinner, ButtonText } from "@/components/ui/button";
 import { Heading } from "@/components/ui/heading";
 import { HStack } from "@/components/ui/hstack";
 import { Pressable } from "@/components/ui/pressable";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
 import { getMonitoring, splitHostAddresses } from "@/src/api/routes";
@@ -208,8 +208,15 @@ export default function DeviceList() {
 
         {hosts.isPending ? (
           <VStack space="sm" className="rounded-3xl bg-card p-5">
-            <Skeleton className="h-10 rounded-xl" />
-            <Skeleton className="h-10 rounded-xl" />
+            {[0, 1].map((i) => (
+              <HStack key={i} space="md" className="items-center py-1">
+                <Placeholder width={40} height={40} radius={20} onCard />
+                <VStack space="xs" className="flex-1">
+                  <Placeholder width="45%" height={14} onCard />
+                  <Placeholder width="30%" height={12} onCard />
+                </VStack>
+              </HStack>
+            ))}
           </VStack>
         ) : hosts.error && all.length === 0 ? (
           <VStack space="md" className="rounded-3xl bg-card p-5">
