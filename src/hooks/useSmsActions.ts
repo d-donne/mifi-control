@@ -1,5 +1,10 @@
-import { deleteSms, setSmsRead } from "@/src/api/routes";
-import { Smstat } from "@/src/api/types/sms";
+import {
+  deleteSms,
+  formatDeviceDate,
+  sendSms,
+  setSmsRead,
+} from "@/src/api/routes";
+import { SmsType, Smstat, type SmsMessage } from "@/src/api/types/sms";
 import { useHiLinkClient } from "@/src/hooks/HiLinkProvider";
 import { ALL_SMS_QUERY_KEY, type AllSms } from "@/src/hooks/useAllSms";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -68,7 +73,39 @@ export function useDeleteSms() {
           data && {
             ...data,
             messages: data.messages.filter((m) => !removed.has(m.Index)),
+            reports: data.reports.filter((m) => !removed.has(m.Index)),
           },
+      );
+    },
+    onSettled: refresh,
+  });
+}
+
+export function useSendSms() {
+  const client = useHiLinkClient();
+  const queryClient = useQueryClient();
+  const refresh = useRefreshSms();
+  return useMutation({
+    scope: SMS_WRITE_SCOPE,
+    mutationFn: ({ phone, text }: { phone: string; text: string }) =>
+      sendSms(client, [phone], text),
+    onMutate: ({ phone, text }) => {
+      const now = new Date();
+      const pending: SmsMessage = {
+        Index: -now.getTime(),
+        Smstat: Smstat.PENDING,
+        Phone: phone,
+        Content: text,
+        Date: formatDeviceDate(now),
+        time: now.getTime(),
+        Sca: "",
+        SaveType: 0,
+        Priority: 0,
+        SmsType: SmsType.SINGLE,
+      };
+      queryClient.setQueryData<AllSms>(
+        ALL_SMS_QUERY_KEY,
+        (data) => data && { ...data, messages: [...data.messages, pending] },
       );
     },
     onSettled: refresh,

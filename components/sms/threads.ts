@@ -1,4 +1,4 @@
-import { Smstat, type SmsMessage } from "@/src/api/types/sms";
+import { SmsType, Smstat, type SmsMessage } from "@/src/api/types/sms";
 import { str } from "@/src/api/utils";
 
 /** Pending, sent and failed messages are ours; NEW and READ are received. */
@@ -104,4 +104,49 @@ export function copyableNumbers(content: string, limit = 4): string[] {
     }
   }
   return found;
+}
+
+/** Numbers and short codes can be texted back; sender names can't. */
+export function canReply(phone: string): boolean {
+  return /^\+?\d{3,15}$/.test(phone.replace(/[\s-]/g, ""));
+}
+
+/** Parts the carrier bills for: 160/153 chars in GSM, 70/67 in UCS-2. */
+export function smsSegments(text: string): number {
+  const unicode = /[^\t\n\r -~]/.test(text);
+  const single = unicode ? 70 : 160;
+  const part = unicode ? 67 : 153;
+  return text.length <= single ? 1 : Math.ceil(text.length / part);
+}
+
+export type Delivery = "delivered" | "undelivered";
+
+/** Matches each delivery report to the latest message sent before it. */
+export function deliveryByIndex(
+  messages: SmsMessage[],
+  reports: SmsMessage[],
+): Map<number, Delivery> {
+  const sent = messages.filter((m) => m.Smstat === Smstat.SEND);
+  const result = new Map<number, Delivery>();
+  for (const report of reports) {
+    let match: SmsMessage | undefined;
+    for (const m of sent) {
+      // Sent and received stamps come from different clocks; allow a minute.
+      if (
+        m.time <= report.time + 60_000 &&
+        phonesMatch(m.Phone, report.Phone)
+      ) {
+        match = m;
+      }
+    }
+    if (match) {
+      result.set(
+        match.Index,
+        report.SmsType === SmsType.DELIVERY_SUCCESS
+          ? "delivered"
+          : "undelivered",
+      );
+    }
+  }
+  return result;
 }

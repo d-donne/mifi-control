@@ -76,6 +76,13 @@ export function normalizeSmsMessage(raw: RawSmsMessage): SmsMessage {
   };
 }
 
+export function isDeliveryReport(message: SmsMessage): boolean {
+  return (
+    message.SmsType === SmsTypeValues.DELIVERY_SUCCESS ||
+    message.SmsType === SmsTypeValues.DELIVERY_FAILURE
+  );
+}
+
 export function normalizeSmsListResponse(
   raw: RawSmsListResponse,
 ): SmsListResponse {

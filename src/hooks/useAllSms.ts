@@ -1,6 +1,6 @@
 import type { SmsMessage } from "@/src/api/types/sms";
-import { fetchAllSms, getMonitoring } from "@/src/api/routes";
-import { BoxType } from "@/src/api/types/sms";
+import { fetchAllSms, getMonitoring, isDeliveryReport } from "@/src/api/routes";
+import { BoxType, Smstat } from "@/src/api/types/sms";
 import { useHiLinkClient } from "@/src/hooks/HiLinkProvider";
 import { useHiLinkQuery } from "@/src/hooks/useHiLinkQuery";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -16,6 +16,8 @@ export const ALL_SMS_QUERY_KEY = ["sms", "all"] as const;
  */
 export interface AllSms {
   messages: SmsMessage[];
+  /** Delivery reports for sent messages, kept out of `messages`. */
+  reports: SmsMessage[];
   inboxCount: number;
   sentCount: number;
   pages: number;
@@ -30,10 +32,14 @@ export interface AllSms {
  * so the list and a tapped detail can never disagree about what exists.
  *
  * New messages are picked up by `useSmsHeartbeat`; the slow poll here is a
- * safety net, sped up while a multipart message is still being reassembled.
+ * safety net, sped up while a multipart message is being reassembled or a
+ * sent message is still pending.
  */
+const reportKey = (m: SmsMessage) => `${m.Index}:${m.Date}`;
+
 export function useAllSms() {
   const client = useHiLinkClient();
+  const queryClient = useQueryClient();
 
   return useQuery<AllSms>({
     queryKey: ALL_SMS_QUERY_KEY,
@@ -46,20 +52,36 @@ export function useAllSms() {
       const inbox = await fetchAllSms(client, BoxType.LOCAL_INBOX);
       const sent = await fetchAllSms(client, BoxType.LOCAL_SENT);
 
-      const messages = [...inbox.messages, ...sent.messages].sort(
+      const all = [...inbox.messages, ...sent.messages].sort(
         (a, b) => a.time - b.time,
       );
+      const messages = all.filter((m) => !isDeliveryReport(m));
+      // The MiFi drops some delivery reports minutes after they arrive
+      // (seen 2026-11-04); keep the ones already seen this session.
+      const reports = all.filter(isDeliveryReport);
+      const fetched = new Set(reports.map(reportKey));
+      const earlier =
+        queryClient
+          .getQueryData<AllSms>(ALL_SMS_QUERY_KEY)
+          ?.reports.filter((r) => !fetched.has(reportKey(r))) ?? [];
 
       return {
         messages,
-        inboxCount: inbox.messages.length,
+        reports: [...reports, ...earlier],
+        inboxCount: messages.length - sent.messages.length,
         sentCount: sent.messages.length,
         pages: inbox.pages + sent.pages,
         error: inbox.error ?? sent.error ?? null,
         deferred: inbox.deferred || sent.deferred,
       };
     },
-    refetchInterval: (query) => (query.state.data?.deferred ? 10_000 : 60_000),
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      const settling =
+        data?.deferred ||
+        data?.messages.some((m) => m.Smstat === Smstat.PENDING);
+      return settling ? 10_000 : 60_000;
+    },
     staleTime: 10_000,
   });
 }

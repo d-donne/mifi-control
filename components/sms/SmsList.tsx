@@ -15,9 +15,10 @@ import { useAppColors } from "@/src/hooks/useAppColors";
 import { useDeleteSms } from "@/src/hooks/useSmsActions";
 import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
-import { MessageSquare, Search, X } from "lucide-react-native";
+import { MessageSquare, Search, SquarePen, X } from "lucide-react-native";
 import { memo, useCallback, useMemo, useState } from "react";
 import { RefreshControl } from "react-native";
+import ComposeSheet from "./ComposeSheet";
 import SenderAvatar from "./SenderAvatar";
 import {
   filterThreads,
@@ -26,6 +27,8 @@ import {
   threadMessages,
   type SmsThread,
 } from "./threads";
+
+const FAB_SIZE = 56;
 
 function previewText(thread: SmsThread): string {
   const content =
@@ -157,14 +160,15 @@ export default function SmsList() {
   );
 
   const [deleting, setDeleting] = useState<SmsThread | null>(null);
+  const [composing, setComposing] = useState(false);
   const { mutate: deleteMessages } = useDeleteSms();
   const confirmDelete = () => {
     if (!deleting) return;
-    deleteMessages(
-      threadMessages(all.data?.messages ?? [], deleting.phone).map(
-        (m) => m.Index,
-      ),
-    );
+    const thread = [
+      ...threadMessages(all.data?.messages ?? [], deleting.phone),
+      ...threadMessages(all.data?.reports ?? [], deleting.phone),
+    ];
+    deleteMessages(thread.map((m) => m.Index));
   };
 
   const renderItem = useCallback(
@@ -246,7 +250,7 @@ export default function SmsList() {
           keyboardDismissMode="on-drag"
           contentContainerStyle={{
             paddingHorizontal: 8,
-            paddingBottom: clearance,
+            paddingBottom: clearance + FAB_SIZE + 16,
           }}
           ListEmptyComponent={<EmptyState search={search.trim()} />}
           refreshControl={
@@ -272,6 +276,16 @@ export default function SmsList() {
           }
         />
       )}
+      <Pressable
+        onPress={() => setComposing(true)}
+        accessibilityRole="button"
+        accessibilityLabel="New message"
+        className="absolute right-5 items-center justify-center rounded-2xl bg-primary shadow-lg data-[active=true]:opacity-80"
+        style={{ bottom: clearance + 8, width: FAB_SIZE, height: FAB_SIZE }}
+      >
+        <SquarePen size={22} color={colors.primaryForeground} />
+      </Pressable>
+      <ComposeSheet visible={composing} onClose={() => setComposing(false)} />
       <ConfirmDialog
         isOpen={deleting !== null}
         onClose={() => setDeleting(null)}

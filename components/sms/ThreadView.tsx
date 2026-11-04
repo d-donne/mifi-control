@@ -13,15 +13,26 @@ import {
 } from "@/src/api/utils/date";
 import { useAllSms } from "@/src/hooks/useAllSms";
 import { useAppColors } from "@/src/hooks/useAppColors";
-import { useDeleteSms, useMarkRead } from "@/src/hooks/useSmsActions";
+import {
+  useDeleteSms,
+  useMarkRead,
+  useSendSms,
+} from "@/src/hooks/useSmsActions";
 import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
 import { ChevronLeft } from "lucide-react-native";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { RefreshControl } from "react-native";
+import { KeyboardAvoidingView, RefreshControl } from "react-native";
+import Composer from "./Composer";
 import MessageActions from "./MessageActions";
 import SenderAvatar from "./SenderAvatar";
-import { isOutgoing, threadMessages } from "./threads";
+import {
+  canReply,
+  deliveryByIndex,
+  isOutgoing,
+  threadMessages,
+  type Delivery,
+} from "./threads";
 
 /** Same-side messages closer together than this read as one burst. */
 const GROUP_GAP_MS = 5 * 60_000;
@@ -33,15 +44,24 @@ interface MessageItem {
   outgoing: boolean;
   /** Follows a same-side message within GROUP_GAP_MS. */
   grouped: boolean;
+  status: string | null;
+  failed: boolean;
 }
 
 type ThreadItem = { type: "day"; key: string; label: string } | MessageItem;
 
-function buildItems(messages: SmsMessage[]): ThreadItem[] {
+function buildItems(
+  messages: SmsMessage[],
+  delivery: Map<number, Delivery>,
+): ThreadItem[] {
   const items: ThreadItem[] = [];
+  let lastOutgoing = -1;
+  messages.forEach((m, i) => {
+    if (isOutgoing(m)) lastOutgoing = i;
+  });
   let previous: SmsMessage | null = null;
   let previousDay: string | null = null;
-  for (const message of messages) {
+  for (const [position, message] of messages.entries()) {
     const day = new Date(message.time).toDateString();
     const newDay = day !== previousDay;
     if (newDay) {
@@ -53,6 +73,11 @@ function buildItems(messages: SmsMessage[]): ThreadItem[] {
     }
     const outgoing = isOutgoing(message);
     const gap = previous === null ? Infinity : message.time - previous.time;
+    const status = statusLabel(
+      message,
+      delivery.get(message.Index),
+      position === lastOutgoing,
+    );
     items.push({
       type: "message",
       key: String(message.Index),
@@ -63,6 +88,10 @@ function buildItems(messages: SmsMessage[]): ThreadItem[] {
         previous !== null &&
         isOutgoing(previous) === outgoing &&
         gap < GROUP_GAP_MS,
+      status,
+      failed:
+        message.Smstat === Smstat.SEND_FAILED ||
+        delivery.get(message.Index) === "undelivered",
     });
     previous = message;
     previousDay = day;
@@ -70,9 +99,15 @@ function buildItems(messages: SmsMessage[]): ThreadItem[] {
   return items;
 }
 
-function statusLabel(message: SmsMessage): string | null {
+function statusLabel(
+  message: SmsMessage,
+  delivery: Delivery | undefined,
+  latest: boolean,
+): string | null {
   if (message.Smstat === Smstat.PENDING) return "Sending…";
   if (message.Smstat === Smstat.SEND_FAILED) return "Not sent";
+  if (delivery === "undelivered") return "Not delivered";
+  if (delivery === "delivered" && latest) return "Delivered";
   return null;
 }
 
@@ -93,10 +128,8 @@ const MessageBubble = memo(function MessageBubble({
   item: MessageItem;
   onLongPress: (message: SmsMessage) => void;
 }) {
-  const { message, outgoing, grouped } = item;
+  const { message, outgoing, grouped, status, failed } = item;
   const content = message.Content.trim();
-  const status = statusLabel(message);
-  const failed = message.Smstat === Smstat.SEND_FAILED;
 
   return (
     <VStack
@@ -207,12 +240,19 @@ export default function ThreadView({ phone }: { phone: string }) {
     () => threadMessages(all.data?.messages ?? [], phone),
     [all.data, phone],
   );
-  const items = useMemo(() => buildItems(messages), [messages]);
+  const reports = useMemo(
+    () => threadMessages(all.data?.reports ?? [], phone),
+    [all.data, phone],
+  );
+  const items = useMemo(
+    () => buildItems(messages, deliveryByIndex(messages, reports)),
+    [messages, reports],
+  );
 
   const { mutate: markRead } = useMarkRead();
   const requestedRead = useRef(new Set<number>());
   useEffect(() => {
-    const unread = messages
+    const unread = [...messages, ...reports]
       .filter(
         (m) => m.Smstat === Smstat.NEW && !requestedRead.current.has(m.Index),
       )
@@ -220,7 +260,7 @@ export default function ThreadView({ phone }: { phone: string }) {
     if (unread.length === 0) return;
     for (const index of unread) requestedRead.current.add(index);
     markRead(unread);
-  }, [messages, markRead]);
+  }, [messages, reports, markRead]);
 
   const [actionsFor, setActionsFor] = useState<SmsMessage | null>(null);
   const [deleting, setDeleting] = useState<SmsMessage | null>(null);
@@ -230,6 +270,8 @@ export default function ThreadView({ phone }: { phone: string }) {
     deleteMessages([deleting.Index]);
     if (messages.length === 1) router.back();
   };
+
+  const { mutate: send } = useSendSms();
 
   const renderItem = useCallback(
     ({ item }: { item: ThreadItem }) =>
@@ -242,7 +284,7 @@ export default function ThreadView({ phone }: { phone: string }) {
   );
 
   return (
-    <VStack className="flex-1">
+    <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
       <ThreadHeader
         phone={phone}
         count={all.data ? messages.length : undefined}
@@ -273,7 +315,10 @@ export default function ThreadView({ phone }: { phone: string }) {
           keyExtractor={(item) => item.key}
           getItemType={(item) => item.type}
           initialScrollIndex={Math.max(0, items.length - 1)}
-          maintainVisibleContentPosition={{ startRenderingFromBottom: true }}
+          maintainVisibleContentPosition={{
+            startRenderingFromBottom: true,
+            autoscrollToBottomThreshold: 0.2,
+          }}
           contentContainerStyle={{
             paddingHorizontal: 16,
             paddingBottom: 12,
@@ -298,6 +343,14 @@ export default function ThreadView({ phone }: { phone: string }) {
           }
         />
       )}
+      {canReply(phone) && (
+        <Composer
+          disabled={!all.data}
+          onSend={(text, restore) =>
+            send({ phone, text }, { onError: restore })
+          }
+        />
+      )}
       <MessageActions
         message={actionsFor}
         onClose={() => setActionsFor(null)}
@@ -311,6 +364,6 @@ export default function ThreadView({ phone }: { phone: string }) {
         confirmLabel="Delete"
         onConfirm={confirmDelete}
       />
-    </VStack>
+    </KeyboardAvoidingView>
   );
 }
