@@ -113,11 +113,11 @@ Known issues, to fix in the SMS iteration:
 
 - The offset is a constant (`RECEIVED_UTC_OFFSET_MIN` in `routes/sms.ts`). If it ever changes (firmware reset, other SIM), self-calibrate: when a poll shows a new message, `stamp − now` rounded to 15 min is the offset; persist it.
 - Optional: one send (costs credit) to confirm the device keeps our `Date` for sent messages.
-- One received multipart part (`+233245193550`, 2026-09-03) has had empty content since September, so it shows "Message still arriving…" forever.
+- One received multipart part (an MTN number, 2026-09-03) has had empty content since September, so it shows "Message still arriving…" forever.
 
 **Correction (2026-11-04): the offset depends on the sending network.**
 
-- The stamp is the sending SMS centre's timestamp (SCTS) with its zone dropped; the MiFi itself doesn't stamp. Owner's test: a message from an MTN number (`+233245193550`) stamped `08:13:48` arrived at ~02:43 GMT (+5:30); one from a Telecel number (`+233508718928`) stamped `02:42:00` arrived at ~02:42 GMT (+0). Yesterday's "boot window" message from the Telecel number was plain GMT for the same reason, not because of the restart.
+- The stamp is the sending SMS centre's timestamp (SCTS) with its zone dropped; the MiFi itself doesn't stamp. Owner's test: a message from an MTN number stamped `08:13:48` arrived at ~02:43 GMT (+5:30); one from a Telecel number stamped `02:42:00` arrived at ~02:42 GMT (+0). Yesterday's "boot window" message from the Telecel number was plain GMT for the same reason, not because of the restart.
 - Rule in `receivedOffsetMin` (`routes/sms.ts`): delivery reports (this SIM's MTN centre) +5:30; Ghanaian numbers by network code, MTN (`24 25 53 54 55 59`) +5:30, others (Telecel `20 50`, AirtelTigo `26 27 56 57`) +0; other full numbers +0 (unknown); sender names and short codes +5:30 (all 71 MoMo and the Ecobank checks).
 - `Sca` is empty on every message (482), so the centre can't be read from the data. A number ported between networks keeps its prefix and would get the wrong offset.
 - `POST host/info` (`Time` `YYYYMMDDHHMMSS`, `Timezone` `GMT+0000`, then `Platform`, `PlatformVer`, `Navigator`, `NavigatorVer`; Salamek `Host.info`) is how the web UI hands the device the client's clock. A bare GET answers `100005`. Not used yet: it's unproven whether it moves the UTC+5:30 zone, and testing that costs an SMS.
@@ -136,3 +136,17 @@ Sending with the default settings produces a **delivery report** in the inbox: `
 - No zone is reachable on this firmware: `sms-list` drops the SCTS offset, `api/sms/config` reports `smsisusepdu: 0` (no PDU path seen in the web UI), the web UI never posts `host/info` and itself shows the wrong times. The MTN centre address is `+233244500000`.
 - `src/sms/clock.ts` learns each sender's offset from messages seen arriving: when the previous fetch was under 90 s earlier, a new received message's stamp (read as UTC) minus the fetch time is rounded to 15 min; it's accepted only if the leftover is between −2.5 and +0.5 min (delayed deliveries fall outside) and within ±14 h. Offsets persist in SecureStore (`mifi.smsOffsets`, sender key → minutes) and re-time that sender's whole history.
 - Senders never seen arriving keep the network rule in `defaultOffsetMin`.
+
+**Correction (2026-11-04, later): learn only from real arrivals.**
+
+- The first version took any message missing from the previous fetch as a new arrival. Old messages go missing when a delete shifts the pages mid-loop or an optimistic delete hides them from the cache; about one in five then passed the residual check. Seen live: MobileMoney learned −11 h and an MTN number −7.5 h, so their histories sat hours in the future, above new texts.
+- Now an offset is learned only from an **unread** message whose raw `Date` is **newer than every earlier stamp from that sender** (one centre stamps in order), between **two complete fetches** under 90 s apart, compared with the last fetch rather than the cache.
+- Earlier learned values are discarded: offsets now live under `mifi.smsOffsets.v2`; `mifi.smsOffsets` is deleted on load.
+- The multipart youth guard in `fetchAllSms` only holds back messages that look 0–10 s old. Before, a sender whose real offset exceeded the default looked hours in the future and stayed hidden that long.
+- Minor, unresolved: received times can read a few seconds ahead of the sender's clock (owner's observation).
+
+## Addendum (2026-11-04): storage slots
+
+- `sms-count`: `LocalMax 500`; inbox, sent and drafts share the 500 slots. `Index` is `40000 + slot`: the newest messages took the lowest free slots after a delete, so **an `Index` is reused**. Identify a message by `Index` + `Date` (`messageKey` in `components/sms/threads.ts`); the notifier and mark-read used `Index` alone and missed messages in reused slots.
+- `delete-sms` frees the slot at once (`LocalDeleted 0`, trash box empty after deletes).
+- Measurements, the backup design and the safe-delete rule: [`sms-backup.md`](./sms-backup.md).

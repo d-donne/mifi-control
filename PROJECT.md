@@ -1,4 +1,4 @@
-# MiFi Dashboard — Project Tracker
+# Mobile WiFi Manager for Huawei — Project Tracker
 
 A custom Expo (React Native + TypeScript) app that controls a Huawei E5576-320 MiFi directly through its local HiLink HTTP API, replacing the official "AI Life" app. No backend: the phone talks to the device at `http://192.168.8.1` over the MiFi's Wi-Fi.
 
@@ -8,21 +8,37 @@ This file is the single source of truth for project state. Research lives in [`p
 
 ## Resume here
 
-_Last updated 2026-11-03._
+_Last updated 2026-11-04._
 
 **Git state when this was written** (check `git log` / `git status` first)
 
-- **Phase 5 (swipeable tabs):** if `git log` doesn't show `feat(nav): swipeable tabs with sliding indicator; conversation above tabs`, it's still staged — commit it after a device check (full message in the change log). It needs the dev client built with `react-native-pager-view`.
-- **Phase 6 (data plan) is work in progress in the working tree, uncommitted:** `components/settings/DataPlanEditor.tsx`, `src/app/(app)/data-plan.tsx`, the "Usage → Data plan" row in `src/app/(app)/(tabs)/settings.tsx`, and a `data-plan` `Stack.Screen` (still `presentation: "modal"`) in `src/app/(app)/_layout.tsx`.
+- Everything is committed through `fix(dependencies): update fast-xml-parser, oxfmt, and oxlint`. This docs update is the last pending commit.
 - Untracked on purpose, never commit: `assets/ui-frame.png` (the dashboard design mock) and any `*.har` capture.
 
-**Next action:** finish Phase 6 (see [Next steps](#next-steps-ordered)).
+**Next action: the first release build on the owner's phone.**
+
+- Settle the runtime-version policy first ([Next steps](#next-steps-ordered) 1).
+- `bunx eas-cli build -p android --profile preview`, then open the link on the phone and install (no developer mode; Android only asks to allow installs from that source). It's a fresh install: sign in again.
+- JS-only changes after that: `bunx eas-cli update --channel preview --environment preview --message "…"`. The phone runs a new update within two cold starts. Native changes need a new build.
+
+**SMS rules learned the hard way**
+
+- The device keeps one session: never fetch boxes in parallel; SMS writes share one mutation scope.
+- `Index` is a storage slot and gets reused after deletes: identify a message by `messageKey` (`Index:Date`).
+- Received stamps carry the sending centre's zone (MTN +5:30, others +0): keep `Date` raw and derive `time` (`smsTime` + learned offsets in `src/sms/clock.ts`).
+- Sender IDs can be names, not numbers. `Count` in `sms-list` isn't a total. Message text needs `decodeHtmlEntities`.
+- Confirm with `ConfirmDialog`, never `Alert.alert`. Use long-press menus; swipe actions would fight the pager.
 
 **Running the app**
 
 - JS-only changes: `bunx expo start` with the installed dev client (Metro on :8081); fast refresh applies edits.
 - After adding a native module: rebuild the dev client with `bun run android` (`expo run:android`). Add `--no-bundler` when Metro is already running.
 - An Android emulator (`emulator-5554`) is used for checks: `adb -s emulator-5554 exec-out screencap -p > shot.png`, `adb shell input tap x y`. The Expo dev client's floating gear button is not part of the app.
+- Release builds: EAS profiles in `eas.json` (`preview` = installable APK on channel `preview`, `development` = dev client on channel `development`).
+- New routes or `Stack.Screen` options need a full app restart (`adb shell am force-stop com.ddonne.mobilewifimanager`, then relaunch); fast refresh doesn't pick them up.
+- The owner sometimes uses the emulator at the same time. Screenshot before every tap; if taps turn into swipes or a touch dot shows, stop sending input. **Never** test mobile data off or restart on the live MiFi without asking: both cut everyone's internet.
+- Live app state without touching the MiFi: Metro's debugger (CDP) `Runtime.evaluate` on the dev app. Hermes doesn't await promises there: store async results on a global and read them back.
+- In dev, React Native's error overlay covers the root `ErrorBoundary`; the boundary screen only shows in release builds.
 
 ---
 
@@ -44,19 +60,20 @@ Conventions the owner set; follow them.
 
 ## Stack
 
-| Area            | Choice                                                                                                                    | Version                               |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
-| Framework       | Expo SDK 58, React 19.3, React Native 0.88 (new architecture, Hermes V1)                                                  | `expo ^58.0.0`, `react-native 0.88.1` |
-| Language        | TypeScript 7 (native `tsc`); excluded from `expo install` checks via `expo.install.exclude`                               | `^7.0.2`                              |
-| Package manager | Bun (`bunx`, `bunx expo install <pkg>`)                                                                                   | —                                     |
-| Routing         | Expo Router, protected routes, `expo-router/js-top-tabs` for swipeable tabs                                               | `~58.0.29`                            |
-| Pager           | `react-native-tab-view` + `react-native-pager-view` (native)                                                              | `^4.3.4`, `9.0.7`                     |
-| Data            | TanStack Query for all device data; polling via `refetchInterval`                                                         | `^5.102.8`                            |
-| Session state   | Zustand (`useSession`)                                                                                                    | `^5.0.16`                             |
-| UI              | Gluestack UI (Uniwind adapter) + Uniwind classes, lucide icons, FlashList                                                 | `uniwind ^1.3.0`, `flash-list 2.3.2`  |
-| Animation       | Reanimated 4 (React Compiler on: use `.get()`/`.set()`)                                                                   | `4.7.1`                               |
-| XML             | `fast-xml-parser` (`parseTagValue: false`) + `fast-xml-builder`                                                           | `^5.11.1`                             |
-| Lint / format   | Oxlint (type-aware + type-check via `oxlint-tsgolint`), Oxfmt (`printWidth 80`, Tailwind class sort, `package.json` sort) | `^1.90.0`, `^0.75.0`                  |
+| Area            | Choice                                                                                                                       | Version                                |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| Framework       | Expo SDK 58, React 19.3, React Native 0.88 (new architecture, Hermes V1)                                                     | `expo ~58.0.23`, `react-native 0.88.1` |
+| Language        | TypeScript 7 (native `tsc`); excluded from `expo install` checks via `expo.install.exclude`                                  | `^7.0.2`                               |
+| Package manager | Bun (`bunx`, `bunx expo install <pkg>`)                                                                                      | —                                      |
+| Routing         | Expo Router, protected routes, `expo-router/js-top-tabs` for swipeable tabs                                                  | `~58.0.30`                             |
+| Pager           | `react-native-tab-view` + `react-native-pager-view` (native)                                                                 | `^4.3.4`, `9.0.7`                      |
+| Data            | TanStack Query for all device data; polling via `refetchInterval`                                                            | `^5.102.8`                             |
+| Session state   | Zustand (`useSession`)                                                                                                       | `^5.0.16`                              |
+| UI              | Gluestack UI (Uniwind adapter) + Uniwind classes, lucide icons, FlashList                                                    | `uniwind ^1.3.0`, `flash-list 2.3.2`   |
+| Animation       | Reanimated 4 (React Compiler on: use `.get()`/`.set()`)                                                                      | `4.7.1`                                |
+| XML             | `fast-xml-parser` (`parseTagValue: false`) + `fast-xml-builder`                                                              | `^5.12.0`                              |
+| Lint / format   | Oxlint (type-aware + type-check via `oxlint-tsgolint`), Oxfmt (`printWidth 80`, Tailwind class sort, `package.json` sort)    | `^1.91.0`, `^0.76.0`                   |
+| Builds          | EAS Build (APK profiles), EAS Update (`expo-updates`, runtime policy `appVersion`), `expo-build-properties` (cleartext HTTP) | `expo-updates ~58.0.21`                |
 
 Scripts: `bun run lint`, `lint:fix`, `fmt`, `fmt:check`, `android`, `prebuild`, `start`.
 
@@ -69,6 +86,10 @@ Scripts: `bun run lint`, `lint:fix`, `fmt`, `fmt:check`, `android`, `prebuild`, 
 - **SMS text contains HTML character references** (`/` arrives as `&#x2F;`); `decodeHtmlEntities` runs in the SMS normalizer.
 - **All XML responses are `Content-Type: text/html`**; parse the body, never branch on the content type.
 - **XHR has a 10 s timeout** (`xhrRequest`); the sign-in reachability probe uses 4 s.
+- **`useHiLinkQuery` only polls on focused screens** (`subscribed` follows `useIsFocused()`): pager tabs stay mounted. Anything that must poll everywhere (SMS heartbeat, notifier) lives in `(app)/_layout.tsx`, which stays focused. Plain `useQuery` (`useAllSms`) isn't gated.
+- **Queries retry once.** The global error toast fires only when the query has no data, and the same message at most once per 30 s.
+- **Android fixes a notification channel's settings when it's created** (the `sms` channel is lock-screen private). To change them, use a new channel id.
+- **Release builds block cleartext HTTP** unless `expo-build-properties` sets `usesCleartextTraffic` (it does); dev builds allow it, so a missing setting only shows in the APK.
 - **Stale Metro bundles** show up as `undefined is not a function` right after edits; restart with `bunx expo start --clear` before assuming a code bug.
 
 ---
@@ -79,22 +100,30 @@ Scripts: `bun run lint`, `lint:fix`, `fmt`, `fmt:check`, `android`, `prebuild`, 
 
 ```
 _layout.tsx              providers, SplashScreenController, RootNavigator:
-                         Stack.Protected guard on status === "connected"
+                         Stack.Protected guard on status === "connected";
+                         exports ErrorBoundary (AppErrorBoundary)
 sign-in.tsx              available while not connected (SignInScreen)
 (app)/                   available while connected
   _layout.tsx            HiLinkProvider (client context) + SmsNotifier + Stack
                          (animation: slide_from_right)
   (tabs)/_layout.tsx     TopTabs, tabBarPosition "bottom", custom TabBar,
                          lazy + lazyPreloadDistance 1
-  (tabs)/index.tsx       Home: Header, HeroCard, UsageStats (battery + data rings)
+  (tabs)/index.tsx       Home: Header (greeting), HeroCard (network, carrier,
+                         signal, uptime), UsageStats (battery ring, data ring →
+                         data plan sheet), DevicesSummaryCard (→ Devices
+                         tab), QuickActions (mobile data toggle)
   (tabs)/devices.tsx     DeviceList
   (tabs)/sms.tsx         SmsList
-  (tabs)/settings.tsx    device + connection info, sign out
+  (tabs)/settings.tsx    device info + uptime, controls (mobile data, restart),
+                         data plan row, connection, sign out
   conversation/[phone].tsx  ThreadView, full screen above the tabs
-  data-plan.tsx          Phase 6 WIP: DataPlanEditor
+  data-plan.tsx          form sheet: DataPlanEditor
+  device/[mac].tsx       form sheet: DeviceDetail (info, rename, block, remove)
 ```
 
 Signing in/out only flips the session status; the guards redirect. No manual navigation in auth code.
+
+Sheets share one options object in `(app)/_layout.tsx`: `presentation: "formSheet"`, detents `[0.75, 1]`, `sheetCornerRadius: 28`, and the background via `contentStyle` (the Android sheet tints its rounded shape with it; a background painted by the screen itself hides the corners).
 
 ### Session and auth
 
@@ -105,33 +134,46 @@ Signing in/out only flips the session status; the guards redirect. No manual nav
 
 ### API (`src/api/`)
 
-- `routes/monitoring.ts`: `getMonitoring(client, "status" | "traffic-statistics" | "month_statistics" | "start_date")` via a coercion table; `setDataPlan` (POST `start_date`, Salamek field order).
-- `routes/device.ts` (`information`, `reboot`), `routes/dialup.ts` (`setMobileData`), `routes/net.ts` (`getCurrentPlmn`), `routes/lan.ts` (`getLanHosts`, `splitHostAddresses`), `routes/sms.ts` (`getSmsList`, `fetchAllSms`, `getSmsCount`, `setSmsRead`, `deleteSms`, `sendSms`).
+- `routes/monitoring.ts`: `getMonitoring(client, "status" | "traffic-statistics" | "month_statistics" | "start_date" | "check-notifications")` via a coercion table; `setDataPlan` (POST `start_date`, Salamek field order).
+- `routes/device.ts` (`information`, decoded HTML entities; `reboot`), `routes/dialup.ts` (`getMobileData`, `setMobileData`), `routes/net.ts` (`getCurrentPlmn`).
+- `routes/sms.ts`: `getSmsList`, `fetchAllSms` (pages until empty, multipart youth guard), `getSmsCount`, `setSmsRead`, `deleteSms`, `sendSms`; `smsTime` / `defaultOffsetMin` (received stamps by sending network), `isDeliveryReport`. Learned per-sender offsets: `src/sms/clock.ts`.
+- `routes/lan.ts`: `getLanHosts` (names decoded), `renameDevice` (`lan/changedevicename`), `forgetDevice` (offline hosts only), `splitHostAddresses`.
+- `routes/wlan.ts`: `getMacFilter` (block list of SSID 0), `blockDevice` / `unblockDevice`. Both read the list fresh, refuse allow-list mode, never block the requesting device, cap at 32, and write the whole list in the web UI's shape.
+- `HiLinkClient.request` throws on non-2xx responses after checking for a device `<error>` body.
 - `errors/index.ts`: code sets, `NETWORK_ERROR_CODE`, `SESSION_CLOSED_CODE`, `isLoginRejection`.
 - `utils/`: `num`/`flag`/`str`, `decodeHtmlEntities`, `formatBytes`, `parseDataLimit`, `formatNetRate`, date helpers (`formatListTime`, `formatDayLabel`, `formatClockTime`, `formatDuration`, …), `xhrRequest` (Cookie-header workaround: RN `fetch` drops `Cookie`).
 
 ### Queries
 
-| Key              | Source                                     | Poll                | Used by                                       |
-| ---------------- | ------------------------------------------ | ------------------- | --------------------------------------------- |
-| `["status"]`     | `monitoring/status`                        | 8 s                 | Header, HeroCard, BatteryRingCard, DeviceList |
-| `["traffic"]`    | `monitoring/traffic-statistics`            | 2 s                 | HeroCard (live rates)                         |
-| `["device"]`     | `device/information`                       | 60 s                | HeroCard, Settings                            |
-| `["plmn"]`       | `net/current-plmn`                         | 60 s                | HeroCard carrier                              |
-| `["month"]`      | `monitoring/month_statistics`              | 30 s                | DataRingCard                                  |
-| `["plan"]`       | `monitoring/start_date`                    | stale 5 min         | DataRingCard, Settings, DataPlanEditor        |
-| `["hosts"]`      | `lan/HostInfo`                             | 30 s                | DeviceList                                    |
-| `["sms","all"]`  | `fetchAllSms` inbox then sent (sequential) | 10 s                | SmsList, ThreadView, SmsNotifier              |
-| `["probe", url]` | `HiLinkClient.isReachable`                 | 3 s until reachable | SignInScreen                                  |
+| Key                 | Source                                     | Poll                                   | Used by                                         |
+| ------------------- | ------------------------------------------ | -------------------------------------- | ----------------------------------------------- |
+| `["status"]`        | `monitoring/status`                        | 8 s                                    | Header, HeroCard, BatteryRingCard, DeviceList   |
+| `["traffic"]`       | `monitoring/traffic-statistics`            | 2 s                                    | HeroCard (live rates)                           |
+| `["device"]`        | `device/information`                       | 60 s                                   | HeroCard, Settings                              |
+| `["plmn"]`          | `net/current-plmn`                         | 60 s                                   | HeroCard carrier                                |
+| `["month"]`         | `monitoring/month_statistics`              | 30 s                                   | DataRingCard                                    |
+| `["plan"]`          | `monitoring/start_date`                    | stale 5 min                            | DataRingCard, Settings, DataPlanEditor          |
+| `["hosts"]`         | `lan/HostInfo`                             | 30 s                                   | DeviceList, DeviceDetail                        |
+| `["macfilter"]`     | `wlan/multi-macfilter-settings-ex`         | 30 s                                   | DeviceList (Blocked), DeviceDetail              |
+| `["mobile-data"]`   | `dialup/mobile-dataswitch`                 | 30 s                                   | QuickActions, Settings                          |
+| `["notifications"]` | `monitoring/check-notifications`           | 5 s                                    | TabBar badge, SmsList (storage full), heartbeat |
+| `["sms","all"]`     | `fetchAllSms` inbox then sent (sequential) | 60 s (10 s while settling) + heartbeat | SmsList, ThreadView, SmsNotifier, ComposeSheet  |
+| `["probe", url]`    | `HiLinkClient.isReachable`                 | 3 s until reachable                    | SignInScreen                                    |
 
-Shared query hooks: `useHiLinkQuery` (injects the client), `useAllSms`, `useDataPlan` / `useMonthStatistics` (`src/hooks/useDataUsage.ts`).
+Shared query hooks: `useHiLinkQuery` (injects the client, pauses unfocused screens), `useStatus` / `useTraffic` / `useDeviceInfo` / `usePlmn` (`useDeviceStatus.ts`), `useAllSms` / `useDeviceNotifications` / `useSmsHeartbeat` (`useAllSms.ts`; the heartbeat refetches SMS when `UnreadMessage` changes), SMS mutations `useMarkRead` / `useDeleteSms` / `useSendSms` (`useSmsActions.ts`, one `sms-write` scope), `useDataPlan` / `useMonthStatistics` (`useDataUsage.ts`), `useLanHosts`, `useMacFilter` + device mutations (`useDeviceActions.ts`; block/unblock/rename/forget share a mutation `scope` so list rewrites never interleave), `useMobileData` / `useSetMobileData` (optimistic) / `useReboot` (`useMifiControls.ts`).
 
 ### UI building blocks
 
 - `components/TabBar.tsx`: floating pill; highlight follows the pager `position`; `useTabBarClearance()` gives the bottom padding for tab pages.
 - `src/hooks/useAppColors.ts`: JS mirror of `global.css` tokens as `rgb(...)` strings (keep in sync by hand).
-- `components/sms/`: `SmsList`, `ThreadView`, `SenderAvatar`, pure selectors in `threads.ts` (`groupThreads`, `filterThreads`, `threadMessages`, `isOutgoing`).
-- `src/notifications/`: `SmsNotifier` (local notification per thread with new unread SMS; tap opens `/conversation/[phone]`).
+- `components/devices/`: `DeviceList` (capacity card, connected, blocked, previously connected), `DeviceDetail`, `hostDisplay.tsx` (`displayName` with `ActualName`, "Unnamed device" for MAC-only names, `DeviceIcon` guessed from the name).
+- `components/dashboard/`: `HeroCard` (network, carrier, signal, live rates, uptime), `DevicesSummaryCard` (avatar stack, `router.navigate("/devices")` switches tabs), `QuickActions` (round buttons on a 4-column grid; toggles act immediately and show On/Off).
+- `formatNetRate` shows bit rates (`kbps` / `Mbps`); it used to label kilobits as "KB/s".
+- `components/common/ConfirmDialog.tsx`: in-app confirmation (Gluestack `AlertDialog`, card background, pill buttons). Used for restart, block, remove and sign out. **Don't use the native `Alert.alert`**: the owner finds it out of place. Toggles (mobile data) never confirm.
+- `components/sms/`: `SmsList` (search across all messages, new-message button), `ThreadView` (reply bar, delivery status, mark read on open), `Composer` (character/SMS count, "Not sent" line), `ComposeSheet`, `MessageActions` (long-press: copy codes/text, delete), `SenderAvatar`; pure selectors in `threads.ts` (`messageKey`, `groupThreads`, `filterThreads`, `threadMessages`, `deliveryByIndex`, `copyableNumbers`, `canReply`, `smsSegments`).
+- `src/notifications/`: `SmsNotifier` (local notification per thread with new unread SMS, keyed by `messageKey`; tap opens `/conversation/[phone]`, also from a cold start); `sms` channel is lock-screen private.
+- `components/dashboard/Header.tsx`: greeting plus data freshness; turns red with "Can't reach the MiFi" when status polls fail (Home only for now).
+- `components/common/AppErrorBoundary.tsx`: root error screen (plain RN: it renders outside the providers; hides the splash).
 - Design reference: `assets/ui-frame.png` (dark, rounded cards, blue accent). Gluestack primitives in `components/ui/*`.
 
 ---
@@ -169,36 +211,44 @@ Firmware `11.0.1.1(H697SP11C00)`, WebUI `11.0.1.1(W11SP6C03)`. Full captured end
 - `traffic-statistics`: `Current*` = this connection, `Total*` = lifetime, rates in bytes/s. Cycle usage comes from `month_statistics`.
 - `start_date`: `SetMonthData 0` = no plan (this device); `DataLimit` like `"0MB"`/`"20GB"`.
 - `current-plmn` `FullName` is `"MTN"` (`Numeric 62001` = Ghana + MTN).
-- SMS: see [`p-docs/sms-research.md`](./p-docs/sms-research.md) (POST `sms-list` with ordered body, `Count` isn't a total, fetch until an empty page, sequential boxes, alphanumeric sender IDs).
+- `lan/HostInfo`: `HostName` is what the device reports, `ActualName` what was set in the web UI (equal until renamed). No-name devices get their MAC with dashes. Rename = `lan/changedevicename {ID, ActualName}`; there's no reset, rename back to `HostName`. Names max 64 bytes.
+- Block list: `wlan/multi-macfilter-settings-ex` (read), `wlan/multi-macfilter-settings` (write, **replaces the whole list**). `wifimacfilterstatus` 0 off / 1 allow-list / 2 block-list (this device: 2). Allow-list writes can lock out every device including the phone. Details in `p-docs/webui-endpoints.md`.
+- Mobile data: `dialup/mobile-dataswitch` (`dataswitch` 0/1).
+- **No wall clock on this firmware.** `sntp/timeinfo`, `serverinfo`, `sntpswitch` → `100002`, `sntp/settings` → `100003` (although `global/module-switch` says `sntp_enabled=1`). `system/onlinestate`, `system/HostInfo` → `100002`; `system/deviceinfoex` → `100003`. Uptime exists: `uptime` in `device/information`, `UpTime` in `system/deviceinfo` (that endpoint answers **JSON**, which the XML parser turns into `{}`).
+- `traffic-statistics` `CurrentConnectTime` was larger than the uptime (2d 18h vs 2d 13h), so it isn't the current session length; not shown.
+- SMS: see [`p-docs/sms-research.md`](./p-docs/sms-research.md) (POST `sms-list` with ordered body, `Count` isn't a total, fetch until an empty page, sequential boxes, alphanumeric sender IDs, received stamps by sending network).
+- SMS storage: `LocalMax 500` shared by inbox and sent; `Index` = 40000 + slot, the lowest free slot is reused; `delete-sms` frees a slot at once (no trash). It holds ~480 messages at ~8 new a day, so it fills in days. `sms/config`: `SaveMode 0` (device storage), `Sca +233244500000`, `sms_forward_enable 0` (a forwarding switch exists, unexplored). Measurements: [`p-docs/sms-backup.md`](./p-docs/sms-backup.md).
 
 ---
 
 ## Status
 
-| Area             | State                                                                                                                     |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| Tooling          | SDK 58, TS 7, Oxlint/Oxfmt; typecheck and lint clean                                                                      |
-| Auth             | Sign-in flow, splash restore, lockout-safe client, sign out — **verified on device**                                      |
-| Home             | Hero card (network, signal, carrier, live rates), battery ring (charging), data ring (cycle usage, plan-aware) — verified |
-| Devices tab      | Connected + previously connected hosts — works, but **some devices are missing** (later)                                  |
-| SMS              | Read-only list + conversation, search, notifications — redesigned UI verified on emulator                                 |
-| Navigation       | Swipeable tabs + conversation above tabs (Phase 5) — committed, verified on the emulator                                  |
-| Data plan editor | WIP (Phase 6)                                                                                                             |
+| Area        | State                                                                                                                                |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Tooling     | SDK 58, TS 7, Oxlint/Oxfmt; typecheck and lint clean; `expo-doctor` 20/20                                                            |
+| Release     | EAS project `mobile-wifi-manager`, preview APK profile, OTA updates configured; **first build pending**                              |
+| Auth        | Sign-in flow, splash restore, lockout-safe client, sign out — **verified on device**                                                 |
+| Home        | Greeting with freshness/offline line, hero (rates + uptime), rings, devices summary, quick actions — verified                        |
+| Data plan   | Bottom sheet from Home and Settings; saving a plan verified by the owner                                                             |
+| Devices tab | Capacity, connected, blocked, previously connected; detail sheet with rename / reset name / block / unblock / remove                 |
+| SMS         | List, conversations, search, compose/reply, copy/delete, delivery status, badge, notifications, learned clock offsets — owner-tested |
+| Navigation  | Swipeable tabs, conversation above tabs, form sheets; only the focused screen polls                                                  |
+
+Live checks still owed on the real MiFi: mobile data off/on and restart. Removing an offline device works (owner-tested); the MiFi keeps listing a removed device for a while, so removal is optimistic and every hosts fetch hides it until the MiFi drops it (max 60 s, `useLanHosts.ts`).
 
 ---
 
 ## Next steps (ordered)
 
-1. **Commit Phase 5** after the owner's device check.
-2. **Phase 6 — data plan as a bottom sheet.** Files above. Change the `data-plan` screen to `presentation: "formSheet"` (Android uses a Material bottom sheet; no nested stack inside it) with suitable `sheetAllowedDetents`; make the **data ring on Home tappable** → `router.push("/data-plan")`; keep the Settings row. Test: save a plan, confirm it shows in the MiFi web UI and the ring switches to "of N GB". `SetMonthData=0` (turning the limit off) is **unverified** on device.
-3. **Phase 7 — docs** (this update) if not already committed.
-4. **SMS iteration** (deferred by the owner until after the above):
-   - `monitoring/check-notifications` as the SMS heartbeat: refetch `["sms","all"]` only when `UnreadMessage` rises; tab badge; warning when `SmsStorageFull=1`.
-   - Notifier fixes: create the Android channel **before** requesting permission (Android 13+ prompt), union the seen set instead of replacing it (partial fetches re-notify old unread), handle cold-start taps (`useLastNotificationResponse`), lighter polling.
-   - Mark read on open, delete, compose/reply (API calls exist). Use long-press menus, not swipe actions (they'd fight the pager).
-5. **Devices:** find why some devices are missing from `lan/HostInfo` (compare with the web UI's device page / `wlan/host-list`); Home devices card; quick actions (mobile data toggle via `setMobileData` + the Gluestack `Switch`).
-6. **Pause polling on off-screen pages** (React Query `subscribed` driven by focus) now that all pager pages stay mounted.
-7. Later: lockout countdown (response field unknown), re-validate the session on app foreground (auth slice E), remove the `console.log`s in `triggerLogin()` (they print the `SessionID`), throughput chart, MCC → country for the carrier label, capture `monitoring/month_used`, try `user/heartbeat` if sessions expire on quiet screens, confirm `tryRefillFromSesTokInfo()` behaviour.
+1. **Runtime-version policy, before the first build.** `appVersion` (current) gives every build with the same `version` in `app.json` (`1.0.0`) the same runtime; EAS only bumps the version code. Adding a native module then needs a `version` bump, or an update built for it reaches older installs and crashes them. `fingerprint` changes the runtime automatically when native code changes (recommended; the owner hasn't decided).
+2. **First release build** and install on the owner's phone (see Resume here).
+3. **App icon and splash:** still Expo's template images and colours. Needs an image from the owner.
+4. **Offline indicator on every tab** (owner's request): only the Home header shows "Can't reach the MiFi"; other tabs look healthy while their data is stale.
+5. **SMS backup (cloud sync):** research in [`p-docs/sms-backup.md`](./p-docs/sms-backup.md): local SQLCipher archive → Cloudflare Worker + D1, end-to-end encrypted, a message leaves the MiFi only once both copies exist. Nothing deletes automatically.
+6. **SMS notifications while the app is closed:** first check the web UI for the MiFi's own SMS forwarding (`sms_forward_enable`; instant, probably costs credit). Otherwise `expo-background-task` (WorkManager, ≥15 min, needs the phone on the MiFi's Wi-Fi, logs in each run), built together with the backup sync. A foreground service (near real time, persistent notification, Android 14/15 limits) only if delays are unacceptable.
+7. **Profile button → account settings** (change the admin password and similar), when the app's messages and auth screens get their pass; removed from the Home header until then.
+8. Minor: received times can read a few seconds ahead of the sender's clock (the owner will flag it if it matters).
+9. Later: lockout countdown (response field unknown), re-validate the session on app foreground (auth slice E), Wi-Fi share QR (blocked: the password is empty in `wlan/multi-basic-settings` and `wlan-guide-settings`, `oled-showpassword` → `100003`; needs a HAR of the web UI showing the password, or a password the owner enters once), throughput chart (tried and dropped; it didn't fit), MCC → country for the carrier label, capture `monitoring/month_used`, try `user/heartbeat` if sessions expire on quiet screens, Done button on the device sheet's title row, crash reporting (EAS Observe or Sentry).
 
 ---
 
@@ -236,4 +286,47 @@ Firmware `11.0.1.1(H697SP11C00)`, WebUI `11.0.1.1(W11SP6C03)`. Full captured end
     with a slide-in, matching Telegram/Truecaller-style flows
   - Home content clears the floating bar
   ```
+- **2026-11-03 — Data plan sheet (Phase 6).** Data plan editor as a form sheet, opened from the Home data ring and Settings → Usage. Commit `feat(usage): data plan editor as a bottom sheet`.
+- **2026-11-03 — Device info entities.** `device/information` values are HTML-decoded (firmware showed `&#40;…&#41;`). Commit `fix(device): decode HTML entities in device information`.
+- **2026-11-03 — Device-management captures.** Two HARs of the web UI's device page: rename, block, unblock, plus the page script (`devicemanagement.js`) with the forget call and the 64-byte name limit. Written up in `p-docs/webui-endpoints.md`.
+- **2026-11-03 — Devices UI (Phase 8).** Capacity card, device-type icons, `ActualName`, "Unnamed device", detail sheet. Commit `feat(devices): capacity card, device icons and a detail sheet`.
+- **2026-11-03 — Device actions (Phase 9).** Rename and reset to the device's own name, block / unblock with a Blocked section. Request bodies checked against the captures with a fake client. Commit `feat(devices): rename, block and unblock devices`.
+- **2026-11-03 — Mobile data and restart in Settings (Phase 10).** First built as a Home card; the owner moved restart to Settings. Commit message:
+  ```
+  feat(settings): mobile data switch, restart and uptime
+
+  - Controls section: mobile data switch (reads dialup/mobile-dataswitch)
+    and Restart MiFi
+  - Restart and sign out confirm in an in-app dialog that matches the
+    app, replacing the native alert; the data switch acts immediately
+  - Uptime row, from device/information (the MiFi exposes no clock)
+  ```
+- **2026-11-03 — Remove offline devices (Phase 11).** Commit message:
+  ```
+  feat(devices): remove offline devices from the list
+
+  - "Remove from list" in the sheet of a device that isn't connected,
+    using the web UI's lan/HostInfo delete call
+  - Refused for connected devices and this phone
+  - The device leaves the list as soon as Remove is tapped; fetches keep
+    hiding it until the MiFi stops listing it, since it lags behind
+    its own OK, and it comes back if the request fails
+  - Remove and block confirm in the in-app dialog
+  ```
+- **2026-11-03 — Device clock probe.** Probed 13 endpoints read-only for a wall clock; none exists (see Device facts). Greeting kept; uptime shown instead.
+- **2026-11-03 — Home revamp (Phase 12).** A live throughput chart and a data plan tile were tried and dropped. Commit message:
+  ```
+  feat(home): devices summary, quick actions and uptime
+
+  - Devices summary card (avatars, names) opening the Devices tab
+  - Quick actions row with a mobile data toggle that acts immediately
+  - Hero card shows the MiFi's uptime next to the live rates
+  - Rates are shown as bit rates; kilobits were labelled "KB/s"
+  ```
 - **2026-11-03 — Docs restructure.** `PROJECT.md` rewritten as a resume-ready tracker; Salamek reference moved to [`p-docs/salamek-reference.md`](./p-docs/salamek-reference.md); `p-docs` trackers and README updated.
+- **2026-11-03/04 — SMS iteration.** Unread heartbeat (`check-notifications`), tab badge and storage-full warning; notifier fixes (channel before permission, union of seen messages, cold-start taps); copy and delete via long-press; compose and reply with delivery reports; received times by sending network, then per-sender offsets learned from live arrivals; quieter loading placeholders. Commits `97ef0ef` … `3f2ae28`.
+- **2026-11-04 — SMS backup research.** Read-only device measurements (500 slots, reused indexes, no trash) and a local-first, end-to-end encrypted design with Cloudflare: [`p-docs/sms-backup.md`](./p-docs/sms-backup.md).
+- **2026-11-04 — Release prep.** Home-screen name "Mobile WiFi", package `com.ddonne.mobilewifimanager`, EAS project `mobile-wifi-manager`; Play title, if ever published, "Mobile WiFi Manager for Huawei" (brand only as compatibility). Cleartext HTTP for release builds, unused native packages removed, Expo packages aligned with SDK 58. Real phone numbers removed from the docs (they remain in git history). Commit `7dda141`.
+- **2026-11-04 — Review fixes.** Only the focused screen polls; shared status/device hooks; one retry and quieter toasts; offline line in the Home header (Profile button removed); non-2xx responses throw; no `SessionID` in logs (`c0eb1e2`). SMS keyed by `Index:Date` for notifications and read marks, search over all messages, send errors shown, lock-screen-private notifications (`e8611bc`). Dead token-refill path and unused helpers removed (`803de31`).
+- **2026-11-04 — Clock offsets learned only from real arrivals.** Old messages reappearing after deletes had taught MobileMoney −11 h; stricter learning, earlier offsets discarded, multipart guard bounded (`d39f9d3`). Details in `sms-research.md`.
+- **2026-11-04 — Error screen, permissions, OTA.** Root `ErrorBoundary`, storage and overlay permissions blocked (`03e878a`); `expo-updates` with EAS Update channels (`3ebc0ff`).
