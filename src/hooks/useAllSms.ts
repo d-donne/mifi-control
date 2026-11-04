@@ -106,6 +106,7 @@ export function useAllSms() {
         data?.messages.some((m) => m.Smstat === Smstat.PENDING);
       return settling ? 10_000 : 60_000;
     },
+    refetchIntervalInBackground: true,
     staleTime: 10_000,
   });
 }
@@ -115,6 +116,8 @@ export function useDeviceNotifications() {
     queryKey: ["notifications"],
     queryFn: (client) => getMonitoring(client, "check-notifications"),
     refetchInterval: 5_000,
+    // SmsNotifier needs it while the app is in the background.
+    refetchIntervalInBackground: true,
   });
 }
 

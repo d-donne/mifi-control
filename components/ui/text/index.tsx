@@ -19,7 +19,6 @@ const Text = React.forwardRef<React.ComponentRef<typeof RNText>, ITextProps>(
       sub,
       italic,
       highlight,
-      selectable,
       ...props
     },
     ref,
@@ -37,7 +36,6 @@ const Text = React.forwardRef<React.ComponentRef<typeof RNText>, ITextProps>(
           highlight: highlight as boolean,
           class: className,
         })}
-        selectable={selectable ?? true}
         {...props}
         ref={ref}
       />

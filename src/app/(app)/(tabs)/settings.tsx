@@ -40,6 +40,7 @@ function Row({ label, value }: { label: string; value: string | undefined }) {
       <Text
         className="ml-4 flex-1 text-right text-sm text-foreground"
         numberOfLines={1}
+        selectable
       >
         {value || "—"}
       </Text>

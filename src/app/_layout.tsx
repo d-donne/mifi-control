@@ -4,11 +4,13 @@ import "@/global.css";
 import { SplashScreenController } from "@/components/auth/SplashScreenController";
 import { useSession } from "@/src/hooks/useSession";
 import {
+  focusManager,
   QueryCache,
   QueryClient,
   QueryClientProvider,
 } from "@tanstack/react-query";
 import { Stack } from "expo-router";
+import { AppState } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -16,6 +18,14 @@ import Toast from "react-native-toast-message";
 import { HiLinkError, SESSION_CLOSED_CODE } from "../api/errors";
 
 export { default as ErrorBoundary } from "@/components/common/AppErrorBoundary";
+
+// React Native has no window focus: AppState drives refetch-on-return and pauses background polls.
+focusManager.setEventListener((setFocused) => {
+  const subscription = AppState.addEventListener("change", (state) =>
+    setFocused(state === "active"),
+  );
+  return () => subscription.remove();
+});
 
 const TOAST_REPEAT_MS = 30_000;
 let lastToast = { message: "", at: 0 };

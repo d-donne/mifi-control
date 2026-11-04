@@ -11,6 +11,7 @@ import {
   useTraffic,
 } from "@/src/hooks/useDeviceStatus";
 import {
+  countryFromPlmn,
   formatDuration,
   formatNetRate,
   isOnline,
@@ -31,7 +32,9 @@ export default function HeroCard() {
 
   const colors = useAppColors();
 
-  const carrier = plmn?.FullName || plmn?.ShortName || null;
+  const name = plmn?.FullName || plmn?.ShortName;
+  const country = countryFromPlmn(plmn?.Numeric);
+  const carrier = name ? (country ? `${name} · ${country}` : name) : null;
 
   const signalConfig = useSignalConfig(status?.SignalIcon);
 

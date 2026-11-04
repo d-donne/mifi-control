@@ -1,3 +1,4 @@
+import { Box } from "@/components/ui/box";
 import { Button, ButtonSpinner, ButtonText } from "@/components/ui/button";
 import { Heading } from "@/components/ui/heading";
 import { HStack } from "@/components/ui/hstack";
@@ -324,7 +325,10 @@ export default function DeviceDetail({ mac }: { mac: string }) {
       keyboardShouldPersistTaps="handled"
     >
       <VStack space="lg">
-        <HStack className="justify-end">
+        <HStack className="items-start">
+          <Box className="flex-1">
+            {host && <DeviceSummary host={host} blocked={blocked} />}
+          </Box>
           <Button variant="ghost" onPress={() => router.back()}>
             <ButtonText>Done</ButtonText>
           </Button>
@@ -332,7 +336,6 @@ export default function DeviceDetail({ mac }: { mac: string }) {
 
         {host ? (
           <>
-            <DeviceSummary host={host} blocked={blocked} />
             <RenameCard host={host} />
             <DeviceInfo host={host} />
             {host.isLocalDevice !== 1 && (
