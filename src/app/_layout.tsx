@@ -15,6 +15,8 @@ import { StatusBar } from "expo-status-bar";
 import Toast from "react-native-toast-message";
 import { HiLinkError, SESSION_CLOSED_CODE } from "../api/errors";
 
+export { default as ErrorBoundary } from "@/components/common/AppErrorBoundary";
+
 const TOAST_REPEAT_MS = 30_000;
 let lastToast = { message: "", at: 0 };
 
