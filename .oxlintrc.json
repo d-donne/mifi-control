@@ -36,7 +36,18 @@
     ],
     "react/style-prop-object": ["warn", { "allow": ["StatusBar"] }],
     "unicorn/no-array-sort": "off",
-    "unicorn/no-array-reverse": "off"
+    "unicorn/no-array-reverse": "off",
+    "no-restricted-imports": [
+      "error",
+      {
+        "paths": [
+          {
+            "name": "lucide-react-native",
+            "message": "Import icons from @/components/icons: the package root bundles every icon."
+          }
+        ]
+      }
+    ]
   },
   "overrides": [
     {
@@ -61,6 +72,10 @@
       "rules": {
         "typescript/no-unsafe-type-assertion": "allow"
       }
+    },
+    {
+      "files": ["components/icons.ts"],
+      "rules": { "no-restricted-imports": "off" }
     }
   ]
 }

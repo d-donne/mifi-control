@@ -15,7 +15,7 @@ import { useAppColors } from "@/src/hooks/useAppColors";
 import { useDeleteSms } from "@/src/hooks/useSmsActions";
 import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
-import { MessageSquare, Search, SquarePen, X } from "lucide-react-native";
+import { MessageSquare, Search, SquarePen, X } from "@/components/icons";
 import { memo, useCallback, useMemo, useState } from "react";
 import { RefreshControl } from "react-native";
 import ComposeSheet from "./ComposeSheet";

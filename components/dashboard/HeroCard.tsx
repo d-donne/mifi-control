@@ -2,7 +2,7 @@ import { Box } from "@/components/ui/box";
 import { HStack } from "@/components/ui/hstack";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
-import { ArrowDown, ArrowUp, Power } from "lucide-react-native";
+import { ArrowDown, ArrowUp, Power } from "@/components/icons";
 import PulsingDot from "../common/PulsingDot";
 import {
   useDeviceInfo,

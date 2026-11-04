@@ -4,7 +4,7 @@ import { Text } from "@/components/ui/text";
 import { formatRelativeTime, getGreeting } from "@/src/api/utils/date";
 import { useAppColors } from "@/src/hooks/useAppColors";
 import { useStatus } from "@/src/hooks/useDeviceStatus";
-import { RefreshCw, WifiOff } from "lucide-react-native";
+import { RefreshCw, WifiOff } from "@/components/icons";
 
 function freshness(updatedAt: number, failing: boolean): string {
   const updated = updatedAt ? `Updated ${formatRelativeTime(updatedAt)}` : "";

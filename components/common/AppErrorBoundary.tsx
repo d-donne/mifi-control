@@ -1,6 +1,6 @@
 import { useAppColors } from "@/src/hooks/useAppColors";
 import { SplashScreen, type ErrorBoundaryProps } from "expo-router";
-import { TriangleAlert } from "lucide-react-native";
+import { TriangleAlert } from "@/components/icons";
 import { useEffect } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 

@@ -7,7 +7,7 @@ import { useAllSms } from "@/src/hooks/useAllSms";
 import { useAppColors } from "@/src/hooks/useAppColors";
 import { useSendSms } from "@/src/hooks/useSmsActions";
 import { useRouter } from "expo-router";
-import { X } from "lucide-react-native";
+import { X } from "@/components/icons";
 import { useMemo, useState } from "react";
 import { KeyboardAvoidingView, Modal, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";

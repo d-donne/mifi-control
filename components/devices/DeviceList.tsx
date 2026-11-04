@@ -13,7 +13,7 @@ import { useStatus } from "@/src/hooks/useDeviceStatus";
 import { useMacFilter, useUnblockDevice } from "@/src/hooks/useDeviceActions";
 import { useLanHosts } from "@/src/hooks/useLanHosts";
 import { useRouter } from "expo-router";
-import { Ban, ChevronDown, ChevronRight, ChevronUp } from "lucide-react-native";
+import { Ban, ChevronDown, ChevronRight, ChevronUp } from "@/components/icons";
 import { useState } from "react";
 import { RefreshControl, ScrollView, View } from "react-native";
 import {

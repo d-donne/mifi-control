@@ -28,7 +28,7 @@ import {
   Router,
   ShieldAlert,
   WifiOff,
-} from "lucide-react-native";
+} from "@/components/icons";
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,

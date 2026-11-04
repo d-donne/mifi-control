@@ -17,7 +17,6 @@ _Last updated 2026-11-04._
 
 **Next action: the first release build on the owner's phone.**
 
-- Settle the runtime-version policy first ([Next steps](#next-steps-ordered) 1).
 - `bunx eas-cli build -p android --profile preview`, then open the link on the phone and install (no developer mode; Android only asks to allow installs from that source). It's a fresh install: sign in again.
 - JS-only changes after that: `bunx eas-cli update --channel preview --environment preview --message "…"`. The phone runs a new update within two cold starts. Native changes need a new build.
 
@@ -60,20 +59,20 @@ Conventions the owner set; follow them.
 
 ## Stack
 
-| Area            | Choice                                                                                                                       | Version                                |
-| --------------- | ---------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
-| Framework       | Expo SDK 58, React 19.3, React Native 0.88 (new architecture, Hermes V1)                                                     | `expo ~58.0.23`, `react-native 0.88.1` |
-| Language        | TypeScript 7 (native `tsc`); excluded from `expo install` checks via `expo.install.exclude`                                  | `^7.0.2`                               |
-| Package manager | Bun (`bunx`, `bunx expo install <pkg>`)                                                                                      | —                                      |
-| Routing         | Expo Router, protected routes, `expo-router/js-top-tabs` for swipeable tabs                                                  | `~58.0.30`                             |
-| Pager           | `react-native-tab-view` + `react-native-pager-view` (native)                                                                 | `^4.3.4`, `9.0.7`                      |
-| Data            | TanStack Query for all device data; polling via `refetchInterval`                                                            | `^5.102.8`                             |
-| Session state   | Zustand (`useSession`)                                                                                                       | `^5.0.16`                              |
-| UI              | Gluestack UI (Uniwind adapter) + Uniwind classes, lucide icons, FlashList                                                    | `uniwind ^1.3.0`, `flash-list 2.3.2`   |
-| Animation       | Reanimated 4 (React Compiler on: use `.get()`/`.set()`)                                                                      | `4.7.1`                                |
-| XML             | `fast-xml-parser` (`parseTagValue: false`) + `fast-xml-builder`                                                              | `^5.12.0`                              |
-| Lint / format   | Oxlint (type-aware + type-check via `oxlint-tsgolint`), Oxfmt (`printWidth 80`, Tailwind class sort, `package.json` sort)    | `^1.91.0`, `^0.76.0`                   |
-| Builds          | EAS Build (APK profiles), EAS Update (`expo-updates`, runtime policy `appVersion`), `expo-build-properties` (cleartext HTTP) | `expo-updates ~58.0.21`                |
+| Area            | Choice                                                                                                                        | Version                                |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| Framework       | Expo SDK 58, React 19.3, React Native 0.88 (new architecture, Hermes V1)                                                      | `expo ~58.0.23`, `react-native 0.88.1` |
+| Language        | TypeScript 7 (native `tsc`); excluded from `expo install` checks via `expo.install.exclude`                                   | `^7.0.2`                               |
+| Package manager | Bun (`bunx`, `bunx expo install <pkg>`)                                                                                       | —                                      |
+| Routing         | Expo Router, protected routes, `expo-router/js-top-tabs` for swipeable tabs                                                   | `~58.0.30`                             |
+| Pager           | `react-native-tab-view` + `react-native-pager-view` (native)                                                                  | `^4.3.4`, `9.0.7`                      |
+| Data            | TanStack Query for all device data; polling via `refetchInterval`                                                             | `^5.102.8`                             |
+| Session state   | Zustand (`useSession`)                                                                                                        | `^5.0.16`                              |
+| UI              | Gluestack UI (Uniwind adapter) + Uniwind classes, lucide icons, FlashList                                                     | `uniwind ^1.3.0`, `flash-list 2.3.2`   |
+| Animation       | Reanimated 4 (React Compiler on: use `.get()`/`.set()`)                                                                       | `4.7.1`                                |
+| XML             | `fast-xml-parser` (`parseTagValue: false`) + `fast-xml-builder`                                                               | `^5.12.0`                              |
+| Lint / format   | Oxlint (type-aware + type-check via `oxlint-tsgolint`), Oxfmt (`printWidth 80`, Tailwind class sort, `package.json` sort)     | `^1.91.0`, `^0.76.0`                   |
+| Builds          | EAS Build (APK profiles), EAS Update (`expo-updates`, runtime policy `fingerprint`), `expo-build-properties` (cleartext HTTP) | `expo-updates ~58.0.21`                |
 
 Scripts: `bun run lint`, `lint:fix`, `fmt`, `fmt:check`, `android`, `prebuild`, `start`.
 
@@ -240,15 +239,14 @@ Live checks still owed on the real MiFi: mobile data off/on and restart. Removin
 
 ## Next steps (ordered)
 
-1. **Runtime-version policy, before the first build.** `appVersion` (current) gives every build with the same `version` in `app.json` (`1.0.0`) the same runtime; EAS only bumps the version code. Adding a native module then needs a `version` bump, or an update built for it reaches older installs and crashes them. `fingerprint` changes the runtime automatically when native code changes (recommended; the owner hasn't decided).
-2. **First release build** and install on the owner's phone (see Resume here).
-3. **App icon and splash:** still Expo's template images and colours. Needs an image from the owner.
-4. **Offline indicator on every tab** (owner's request): only the Home header shows "Can't reach the MiFi"; other tabs look healthy while their data is stale.
-5. **SMS backup (cloud sync):** research in [`p-docs/sms-backup.md`](./p-docs/sms-backup.md): local SQLCipher archive → Cloudflare Worker + D1, end-to-end encrypted, a message leaves the MiFi only once both copies exist. Nothing deletes automatically.
-6. **SMS notifications while the app is closed:** first check the web UI for the MiFi's own SMS forwarding (`sms_forward_enable`; instant, probably costs credit). Otherwise `expo-background-task` (WorkManager, ≥15 min, needs the phone on the MiFi's Wi-Fi, logs in each run), built together with the backup sync. A foreground service (near real time, persistent notification, Android 14/15 limits) only if delays are unacceptable.
-7. **Profile button → account settings** (change the admin password and similar), when the app's messages and auth screens get their pass; removed from the Home header until then.
-8. Minor: received times can read a few seconds ahead of the sender's clock (the owner will flag it if it matters).
-9. Later: lockout countdown (response field unknown), re-validate the session on app foreground (auth slice E), Wi-Fi share QR (blocked: the password is empty in `wlan/multi-basic-settings` and `wlan-guide-settings`, `oled-showpassword` → `100003`; needs a HAR of the web UI showing the password, or a password the owner enters once), throughput chart (tried and dropped; it didn't fit), MCC → country for the carrier label, capture `monitoring/month_used`, try `user/heartbeat` if sessions expire on quiet screens, Done button on the device sheet's title row, crash reporting (EAS Observe or Sentry).
+1. **First release build** and install on the owner's phone (see Resume here). Runtime policy is `fingerprint`: native dependencies, config plugins, app config and icons are hashed, so any native change gets a new runtime and updates only reach builds they fit. A fingerprint change means a new build.
+2. **App icon and splash:** still Expo's template images and colours. Needs an image from the owner.
+3. **Offline indicator on every tab** (owner's request): only the Home header shows "Can't reach the MiFi"; other tabs look healthy while their data is stale.
+4. **SMS backup (cloud sync):** research in [`p-docs/sms-backup.md`](./p-docs/sms-backup.md): local SQLCipher archive → Cloudflare Worker + D1, end-to-end encrypted, a message leaves the MiFi only once both copies exist. Nothing deletes automatically.
+5. **SMS notifications while the app is closed:** first check the web UI for the MiFi's own SMS forwarding (`sms_forward_enable`; instant, probably costs credit). Otherwise `expo-background-task` (WorkManager, ≥15 min, needs the phone on the MiFi's Wi-Fi, logs in each run), built together with the backup sync. A foreground service (near real time, persistent notification, Android 14/15 limits) only if delays are unacceptable.
+6. **Profile button → account settings** (change the admin password and similar), when the app's messages and auth screens get their pass; removed from the Home header until then.
+7. Minor: received times can read a few seconds ahead of the sender's clock (the owner will flag it if it matters).
+8. Later: lockout countdown (response field unknown), re-validate the session on app foreground (auth slice E), Wi-Fi share QR (blocked: the password is empty in `wlan/multi-basic-settings` and `wlan-guide-settings`, `oled-showpassword` → `100003`; needs a HAR of the web UI showing the password, or a password the owner enters once), throughput chart (tried and dropped; it didn't fit), MCC → country for the carrier label, capture `monitoring/month_used`, try `user/heartbeat` if sessions expire on quiet screens, Done button on the device sheet's title row, crash reporting (EAS Observe or Sentry).
 
 ---
 

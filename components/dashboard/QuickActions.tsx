@@ -3,7 +3,7 @@ import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
 import { useAppColors } from "@/src/hooks/useAppColors";
 import { useMobileData, useSetMobileData } from "@/src/hooks/useMifiControls";
-import { Globe } from "lucide-react-native";
+import { Globe } from "@/components/icons";
 import { ActivityIndicator, View } from "react-native";
 
 const COLUMNS = 4;

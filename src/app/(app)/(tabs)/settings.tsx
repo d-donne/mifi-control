@@ -17,7 +17,7 @@ import {
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import { useSession } from "@/src/hooks/useSession";
 import { useRouter } from "expo-router";
-import { ChevronRight, LogOut } from "lucide-react-native";
+import { ChevronRight, LogOut } from "@/components/icons";
 import { useState, type ReactNode } from "react";
 import { ActivityIndicator, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";

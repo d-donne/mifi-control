@@ -1,7 +1,7 @@
 import { getProgress } from "@/components/common/CircularProgress";
 import { useAppColors } from "@/src/hooks/useAppColors";
 import { useStatus } from "@/src/hooks/useDeviceStatus";
-import { PlugZap } from "lucide-react-native";
+import { PlugZap } from "@/components/icons";
 import StatRingCard from "./StatRingCard";
 
 export default function BatteryRingCard() {

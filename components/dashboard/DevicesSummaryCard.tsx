@@ -6,7 +6,7 @@ import type { LanHost } from "@/src/api/types";
 import { useAppColors } from "@/src/hooks/useAppColors";
 import { useLanHosts } from "@/src/hooks/useLanHosts";
 import { useRouter } from "expo-router";
-import { ChevronRight } from "lucide-react-native";
+import { ChevronRight } from "@/components/icons";
 import { View } from "react-native";
 
 const MAX_AVATARS = 3;

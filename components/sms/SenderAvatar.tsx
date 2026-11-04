@@ -1,7 +1,7 @@
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
 import { useAppColors } from "@/src/hooks/useAppColors";
-import { User } from "lucide-react-native";
+import { User } from "@/components/icons";
 
 /**
  * Initial for named senders ("MTN", "ABSA"); a person icon for phone

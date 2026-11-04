@@ -7,7 +7,7 @@ import {
   SignalMedium,
   SignalZero,
   type LucideIcon,
-} from "lucide-react-native";
+} from "@/components/icons";
 import type { ColorValue } from "react-native";
 
 /**

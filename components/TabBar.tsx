@@ -9,7 +9,7 @@ import {
   Settings as SettingsIcon,
   TabletSmartphone,
   type LucideIcon,
-} from "lucide-react-native";
+} from "@/components/icons";
 import { useState } from "react";
 import { Animated, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";

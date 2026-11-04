@@ -20,7 +20,7 @@ import {
 } from "@/src/hooks/useSmsActions";
 import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
-import { ChevronLeft } from "lucide-react-native";
+import { ChevronLeft } from "@/components/icons";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { KeyboardAvoidingView, RefreshControl, View } from "react-native";
 import Composer from "./Composer";

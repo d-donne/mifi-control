@@ -6,7 +6,7 @@ import type { SmsMessage } from "@/src/api/types/sms";
 import { formatFullDateTime } from "@/src/api/utils/date";
 import { useAppColors } from "@/src/hooks/useAppColors";
 import * as Clipboard from "expo-clipboard";
-import { Copy, Trash2 } from "lucide-react-native";
+import { Copy, Trash2 } from "@/components/icons";
 import { Modal, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { copyableNumbers } from "./threads";

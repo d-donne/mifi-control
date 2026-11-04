@@ -4,7 +4,7 @@ import { Pressable } from "@/components/ui/pressable";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
 import { useAppColors } from "@/src/hooks/useAppColors";
-import { SendHorizontal } from "lucide-react-native";
+import { SendHorizontal } from "@/components/icons";
 import { useState } from "react";
 import { smsSegments } from "./threads";
 
