@@ -14,12 +14,7 @@ import {
   Smstat as SmstatValues,
   SortType as SortTypeValues,
 } from "../types/sms";
-import { decodeHtmlEntities } from "../utils";
-
-function toNumber(v: unknown, fallback = 0): number {
-  const n = typeof v === "number" ? v : Number(v);
-  return Number.isFinite(n) ? n : fallback;
-}
+import { decodeHtmlEntities, num } from "../utils";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -75,22 +70,22 @@ export function smsTime(date: string, offsetMin: number | null): number {
 
 export function normalizeSmsMessage(raw: RawSmsMessage): SmsMessage {
   const { Index, Smstat, SaveType, Priority, SmsType, ...rest } = raw;
-  const smstat = toNumber(Smstat);
+  const smstat = num(Smstat);
   const date = raw.Date ?? "";
   const received = smstat === SmstatValues.NEW || smstat === SmstatValues.READ;
   const phone = decodeHtmlEntities(raw.Phone ?? "");
-  const smsType = toNumber(SmsType);
+  const smsType = num(SmsType);
   return {
     ...rest,
-    Index: toNumber(Index),
+    Index: num(Index),
     Smstat: smstat,
     Phone: phone,
     Content: decodeHtmlEntities(raw.Content ?? ""),
     Date: date,
     time: smsTime(date, received ? defaultOffsetMin(phone, smsType) : null),
     Sca: raw.Sca ?? "",
-    SaveType: toNumber(SaveType),
-    Priority: toNumber(Priority),
+    SaveType: num(SaveType),
+    Priority: num(Priority),
     SmsType: smsType,
   };
 }
@@ -108,7 +103,7 @@ export function normalizeSmsListResponse(
   const msg = raw.Messages?.Message;
   const list = msg === undefined ? [] : Array.isArray(msg) ? msg : [msg];
   return {
-    Count: toNumber(raw.Count),
+    Count: num(raw.Count),
     Messages: list.map(normalizeSmsMessage),
   };
 }

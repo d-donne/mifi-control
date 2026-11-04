@@ -304,17 +304,17 @@ export class HiLinkClient {
         // Salamek treats it as success — proceed to pool rotation below.
       } else if (LOGIN_WRONG_CREDENTIALS_CODES.has(code)) {
         throw new HiLinkError(
-          `Login failed: wrong username or password (device code ${code}) — check Settings, not retrying.`,
+          `Wrong username or password (code ${code}).`,
           loginBody.error.code,
         );
       } else if (LOGIN_LOCKOUT_CODES.has(code)) {
         throw new HiLinkError(
-          `Login failed: device is throttling login attempts (code ${code}) — wait a few minutes before retrying.`,
+          `The MiFi is blocking sign-in after too many attempts (code ${code}). Wait a few minutes.`,
           loginBody.error.code,
         );
       } else if (LOGIN_PASSWORD_CHANGE_CODES.has(code)) {
         throw new HiLinkError(
-          `Login failed: device requires its admin password to be changed first (code ${code}).`,
+          `The MiFi wants its admin password changed before sign-in (code ${code}).`,
           loginBody.error.code,
         );
       } else {
@@ -419,16 +419,12 @@ export class HiLinkClient {
    *
    * GET requests only consume when exactly 1 token remains (Salamek's
    * Session.get); with a fuller pool they send no token header at all.
-   * Returns the token to use, plus whether the caller should attach it.
+   * Returns the token to attach, or null to send none.
    */
-  private pickToken(isGet: boolean): { token: string | null; attach: boolean } {
-    if (isGet && this.tokenPool.length > 1) {
-      return { token: null, attach: false };
-    }
-    if (this.tokenPool.length > 1)
-      return { token: this.tokenPool.shift()!, attach: true };
-    const last = this.tokenPool[0] ?? null;
-    return { token: last, attach: last !== null };
+  private pickToken(isGet: boolean): string | null {
+    if (isGet && this.tokenPool.length > 1) return null;
+    if (this.tokenPool.length > 1) return this.tokenPool.shift()!;
+    return this.tokenPool[0] ?? null;
   }
 
   /**
@@ -445,35 +441,13 @@ export class HiLinkClient {
   }
 
   /**
-   * Re-hits SesTokInfo to get a single fresh token without a full
-   * re-login. Note: unverified whether SesTokInfo called while already
-   * authenticated returns a token valid for the existing cookie, or
-   * silently starts a new anonymous session. If the refill fails,
-   * `request<T>` falls through to a full `triggerLogin()`.
-   */
-  private async tryRefillFromSesTokInfo(): Promise<boolean> {
-    try {
-      const res = await xhrRequest(`${this.baseUrl}/api/webserver/SesTokInfo`);
-      if (!res.ok) return false;
-      const data = this.parser.parse(await res.text()) as SessionTokenResponse;
-      if (data.response?.TokInfo) {
-        this.tokenPool = [data.response.TokInfo];
-        return true;
-      }
-    } catch {
-      // fall through to re-login
-    }
-    return false;
-  }
-
-  /**
    * make a request to the HiLink device. automatically handles session refresh and token rotation.
    * Retry policy (Salamek's single-shot shape): at most ONE re-login per
    * call. A token error (125001/125002/125003) triggers one shared
    * single-flight login, then exactly one retry of the original request.
    * Anything else — including a second token error — surfaces to the
    * caller. Login errors (108001/108002/108006/108007) never retry here:
-   * triggerLogin throws typed errors and callers (Settings UI) decide.
+   * triggerLogin throws typed errors and the session store decides.
    */
   private async request<T>(
     path: string,
@@ -484,25 +458,15 @@ export class HiLinkClient {
     retried = false,
   ): Promise<T> {
     const isGet = (opts.method ?? "GET") === "GET";
-    let { token, attach } = this.pickToken(isGet);
-    if (attach && !token) {
-      const refilled = await this.tryRefillFromSesTokInfo();
-      if (refilled) ({ token, attach } = this.pickToken(isGet));
-      if (attach && !token) {
-        await this.loginOnce();
-        ({ token, attach } = this.pickToken(isGet));
-      }
-    }
-
-    if ((attach && !token) || !this.cookie)
-      throw new HiLinkError("No valid session after login/refresh attempts");
+    const token = this.pickToken(isGet);
+    if (!this.cookie) throw new HiLinkError("No session: sign in again");
 
     const headers: Record<string, string> = {
       "Content-Type": "text/xml; charset=UTF-8",
       Cookie: this.cookie,
       Referer: this.referer,
     };
-    if (attach && token) headers.__RequestVerificationToken = token;
+    if (token) headers.__RequestVerificationToken = token;
 
     const body = opts.bodyObj
       ? this.builder.build({ request: opts.bodyObj })
