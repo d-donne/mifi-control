@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "MiFi Controller",
-    "slug": "mifi-controller",
+    "name": "Mobile WiFi",
+    "slug": "mobile-wifi-manager",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -9,7 +9,7 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon",
-      "bundleIdentifier": "com.ddonne.mificontroller"
+      "bundleIdentifier": "com.ddonne.mobilewifimanager"
     },
     "android": {
       "adaptiveIcon": {
@@ -19,7 +19,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.ddonne.mificontroller"
+      "package": "com.ddonne.mobilewifimanager"
     },
     "web": {
       "output": "static",
@@ -37,13 +37,30 @@
       ],
       "expo-secure-store",
       "expo-font",
-      "expo-image",
-      "expo-web-browser",
-      "expo-status-bar"
+      "expo-status-bar",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "b37ba01b-7cff-4be1-a7b1-d74bbdbd41e7"
+      }
+    },
+    "owner": "d-donne"
   }
 }

@@ -1,6 +1,6 @@
-# MiFi Dashboard
+# Mobile WiFi Manager for Huawei
 
-Expo + TypeScript app that controls a Huawei MiFi (E5576-320) over local Wi-Fi through its HiLink HTTP API. No backend — the phone talks to the device at `http://192.168.8.1` directly.
+Expo + TypeScript app that controls a Huawei Mobile WiFi (tested on the E5576-320) over its own Wi-Fi through the local HiLink HTTP API. No backend: the phone talks to the device at `http://192.168.8.1` directly. Not affiliated with Huawei.
 
 ## Run
 
