@@ -1,50 +1,44 @@
 import { Box } from "@/components/ui/box";
-import { Pressable } from "@/components/ui/pressable";
-import { Text } from "@/components/ui/text";
 import { HStack } from "@/components/ui/hstack";
-import { RefreshCw, User } from "lucide-react-native";
+import { Text } from "@/components/ui/text";
 import { formatRelativeTime, getGreeting } from "@/src/api/utils/date";
-import { getMonitoring } from "@/src/api/routes";
-import { useHiLinkQuery } from "@/src/hooks/useHiLinkQuery";
 import { useAppColors } from "@/src/hooks/useAppColors";
+import { useStatus } from "@/src/hooks/useDeviceStatus";
+import { RefreshCw, WifiOff } from "lucide-react-native";
+
+function freshness(updatedAt: number, failing: boolean): string {
+  const updated = updatedAt ? `Updated ${formatRelativeTime(updatedAt)}` : "";
+  if (!failing) return updated || "Connecting…";
+  return updated
+    ? `Can't reach the MiFi · ${updated.toLowerCase()}`
+    : "Can't reach the MiFi";
+}
 
 export default function Header() {
   const colors = useAppColors();
-  const { dataUpdatedAt, error } = useHiLinkQuery({
-    queryKey: ["status"],
-    queryFn: (client) => getMonitoring(client, "status"),
-    refetchInterval: 8000,
-  });
-
-  if (error) {
-    return (
-      <Text className="text-sm text-destructive">
-        Status error: {String(error)}
-      </Text>
-    );
-  }
+  const { dataUpdatedAt, isError } = useStatus();
+  const Icon = isError ? WifiOff : RefreshCw;
 
   return (
-    <HStack className="items-start justify-between pb-2">
-      <Box>
-        <Text className="text-2xl font-bold text-foreground">
-          {getGreeting()}
+    <Box className="pb-2">
+      <Text className="text-2xl font-bold text-foreground">
+        {getGreeting()}
+      </Text>
+      <HStack space="xs" className="mt-1 items-center">
+        <Icon
+          size={14}
+          color={isError ? colors.destructive : colors.mutedForeground}
+        />
+        <Text
+          className={
+            isError
+              ? "text-xs text-destructive"
+              : "text-xs text-muted-foreground"
+          }
+        >
+          {freshness(dataUpdatedAt, isError)}
         </Text>
-        <HStack space="xs" className="mt-1 items-center">
-          <RefreshCw size={14} />
-          <Text className="text-xs text-muted-foreground">
-            {formatRelativeTime(dataUpdatedAt)}
-          </Text>
-        </HStack>
-      </Box>
-      <Pressable
-        accessibilityLabel="Profile"
-        accessibilityRole="button"
-        hitSlop={8}
-        className="rounded-full bg-secondary p-2"
-      >
-        <User size={18} color={colors.secondaryForeground} />
-      </Pressable>
-    </HStack>
+      </HStack>
+    </Box>
   );
 }

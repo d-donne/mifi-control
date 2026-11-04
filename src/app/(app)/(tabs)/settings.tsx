@@ -5,11 +5,10 @@ import { Pressable } from "@/components/ui/pressable";
 import { Switch } from "@/components/ui/switch";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
-import { getDevice } from "@/src/api/routes";
 import { formatDuration, num, parseDataLimit } from "@/src/api/utils";
 import { useAppColors } from "@/src/hooks/useAppColors";
 import { useDataPlan } from "@/src/hooks/useDataUsage";
-import { useHiLinkQuery } from "@/src/hooks/useHiLinkQuery";
+import { useDeviceInfo } from "@/src/hooks/useDeviceStatus";
 import {
   useMobileData,
   useReboot,
@@ -134,10 +133,7 @@ export default function Settings() {
   const credentials = useSession((s) => s.credentials);
   const signOut = useSession((s) => s.signOut);
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);
-  const { data: device } = useHiLinkQuery({
-    queryKey: ["device"],
-    queryFn: (client) => getDevice(client, "information"),
-  });
+  const { data: device } = useDeviceInfo();
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>

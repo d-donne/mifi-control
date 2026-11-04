@@ -15,24 +15,34 @@ import { StatusBar } from "expo-status-bar";
 import Toast from "react-native-toast-message";
 import { HiLinkError, SESSION_CLOSED_CODE } from "../api/errors";
 
-const queryClinet = new QueryClient({
+const TOAST_REPEAT_MS = 30_000;
+let lastToast = { message: "", at: 0 };
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    // Polls retry on their own; more retries only queue up on the MiFi's one session.
+    queries: { retry: 1 },
+  },
   queryCache: new QueryCache({
-    onError: (error: HiLinkError) => {
+    onError: (error, query) => {
       if (error instanceof HiLinkError && error.code === SESSION_CLOSED_CODE) {
         return;
       }
-      Toast.show({
-        type: "error",
-        text1: "Error",
-        text2: error instanceof HiLinkError ? error.message : String(error),
-      });
+      // A failed poll keeps the last data on screen; the Home header flags the outage.
+      if (query.state.data !== undefined) return;
+      const message = error.message;
+      const now = Date.now();
+      if (message === lastToast.message && now - lastToast.at < TOAST_REPEAT_MS)
+        return;
+      lastToast = { message, at: now };
+      Toast.show({ type: "error", text1: "Error", text2: message });
     },
   }),
 });
 
 export default function App() {
   return (
-    <QueryClientProvider client={queryClinet}>
+    <QueryClientProvider client={queryClient}>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
           <StatusBar animated style="auto" />

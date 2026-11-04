@@ -1,5 +1,6 @@
 import { getMobileData, reboot, setMobileData } from "@/src/api/routes";
 import { useHiLinkClient } from "@/src/hooks/HiLinkProvider";
+import { STATUS_QUERY_KEY } from "@/src/hooks/useDeviceStatus";
 import { useHiLinkQuery } from "@/src/hooks/useHiLinkQuery";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -30,7 +31,7 @@ export function useSetMobileData() {
     onSettled: () =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: MOBILE_DATA_QUERY_KEY }),
-        queryClient.invalidateQueries({ queryKey: ["status"] }),
+        queryClient.invalidateQueries({ queryKey: STATUS_QUERY_KEY }),
       ]),
   });
 }

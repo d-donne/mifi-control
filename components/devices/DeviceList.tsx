@@ -5,11 +5,11 @@ import { HStack } from "@/components/ui/hstack";
 import { Pressable } from "@/components/ui/pressable";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
-import { getMonitoring, splitHostAddresses } from "@/src/api/routes";
+import { splitHostAddresses } from "@/src/api/routes";
 import type { BlockedDevice, LanHost } from "@/src/api/types";
 import { formatDuration } from "@/src/api/utils";
 import { useAppColors } from "@/src/hooks/useAppColors";
-import { useHiLinkQuery } from "@/src/hooks/useHiLinkQuery";
+import { useStatus } from "@/src/hooks/useDeviceStatus";
 import { useMacFilter, useUnblockDevice } from "@/src/hooks/useDeviceActions";
 import { useLanHosts } from "@/src/hooks/useLanHosts";
 import { useRouter } from "expo-router";
@@ -175,11 +175,7 @@ export default function DeviceList() {
 
   const hosts = useLanHosts();
   const { data: filter } = useMacFilter();
-  const { data: status } = useHiLinkQuery({
-    queryKey: ["status"],
-    queryFn: (client) => getMonitoring(client, "status"),
-    refetchInterval: 8000,
-  });
+  const { data: status } = useStatus();
 
   const all = hosts.data ?? [];
   const connected = all

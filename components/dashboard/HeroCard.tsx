@@ -4,8 +4,12 @@ import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
 import { ArrowDown, ArrowUp, Power } from "lucide-react-native";
 import PulsingDot from "../common/PulsingDot";
-import { getCurrentPlmn, getDevice, getMonitoring } from "@/src/api/routes";
-import { useHiLinkQuery } from "@/src/hooks/useHiLinkQuery";
+import {
+  useDeviceInfo,
+  usePlmn,
+  useStatus,
+  useTraffic,
+} from "@/src/hooks/useDeviceStatus";
 import {
   formatDuration,
   formatNetRate,
@@ -20,29 +24,10 @@ import { useAppColors } from "@/src/hooks/useAppColors";
 import GradientText from "../common/GradientText";
 
 export default function HeroCard() {
-  const { data: device } = useHiLinkQuery({
-    queryKey: ["device"],
-    queryFn: (client) => getDevice(client, "information"),
-    refetchInterval: 60000,
-  });
-
-  const { data: status } = useHiLinkQuery({
-    queryKey: ["status"],
-    queryFn: (client) => getMonitoring(client, "status"),
-    refetchInterval: 8000,
-  });
-
-  const { data: traffic } = useHiLinkQuery({
-    queryKey: ["traffic"],
-    queryFn: (client) => getMonitoring(client, "traffic-statistics"),
-    refetchInterval: 2000,
-  });
-
-  const { data: plmn } = useHiLinkQuery({
-    queryKey: ["plmn"],
-    queryFn: getCurrentPlmn,
-    refetchInterval: 60_000,
-  });
+  const { data: device } = useDeviceInfo();
+  const { data: status } = useStatus();
+  const { data: traffic } = useTraffic();
+  const { data: plmn } = usePlmn();
 
   const colors = useAppColors();
 

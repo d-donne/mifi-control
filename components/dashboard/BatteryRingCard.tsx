@@ -1,18 +1,13 @@
 import { getProgress } from "@/components/common/CircularProgress";
-import { getMonitoring } from "@/src/api/routes";
 import { useAppColors } from "@/src/hooks/useAppColors";
-import { useHiLinkQuery } from "@/src/hooks/useHiLinkQuery";
+import { useStatus } from "@/src/hooks/useDeviceStatus";
 import { PlugZap } from "lucide-react-native";
 import StatRingCard from "./StatRingCard";
 
 export default function BatteryRingCard() {
   const colors = useAppColors();
 
-  const { data: status } = useHiLinkQuery({
-    queryKey: ["status"],
-    queryFn: (client) => getMonitoring(client, "status"),
-    refetchInterval: 8000,
-  });
+  const { data: status } = useStatus();
 
   const percent = status?.BatteryPercent ?? 0;
   const charging = Boolean(status?.BatteryStatus);

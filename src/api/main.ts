@@ -337,10 +337,7 @@ export class HiLinkClient {
     // re-issue Set-Cookie on /api/user/login, but the home-page cookie
     // is still valid post-login.
 
-    console.log("login set-cookie header:", loginRes.headers.get("set-cookie"));
-
     this.tokenPool = extractLoginTokenPool(loginRes);
-    console.log("post-login token pool size:", this.tokenPool.length);
     if (this.tokenPool.length === 0) {
       throw new HiLinkError("Login succeeded but no CSRF tokens were returned");
     }
@@ -538,6 +535,9 @@ export class HiLinkClient {
         `Device returned error: ${parsed.error.message ?? `code ${parsed.error.code} (no message)`}`,
         parsed.error.code,
       );
+    }
+    if (!res.ok) {
+      throw new HiLinkError(`Device returned HTTP ${res.status}`, res.status);
     }
     return parsed;
   }
