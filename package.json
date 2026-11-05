@@ -15,6 +15,7 @@
     "lint:fix": "oxlint --fix",
     "prebuild": "expo prebuild --clean",
     "start": "expo start",
+    "update": "sh scripts/publish-update.sh",
     "web": "expo start --web"
   },
   "dependencies": {

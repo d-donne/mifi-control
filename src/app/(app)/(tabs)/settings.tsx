@@ -9,6 +9,7 @@ import { useAppColors } from "@/src/hooks/useAppColors";
 import { useDataPlan } from "@/src/hooks/useDataUsage";
 import { useDeviceInfo } from "@/src/hooks/useDeviceStatus";
 import { useReboot } from "@/src/hooks/useMifiControls";
+import AppUpdates from "@/components/settings/AppUpdates";
 import MobileDataRow from "@/components/settings/MobileDataRow";
 import PalettePicker from "@/components/settings/PalettePicker";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
@@ -155,6 +156,10 @@ export default function Settings() {
               value={credentials?.baseUrl.replace(/^https?:\/\//, "")}
             />
             <Row label="Signed in as" value={credentials?.username} />
+          </Section>
+
+          <Section title="App">
+            <AppUpdates />
           </Section>
 
           <Button
