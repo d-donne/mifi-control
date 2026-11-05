@@ -2,7 +2,6 @@ import { Box } from "@/components/ui/box";
 import { HStack } from "@/components/ui/hstack";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
-import { ArrowDown, ArrowUp, Power } from "@/components/icons";
 import PulsingDot from "../common/PulsingDot";
 import {
   useDeviceInfo,
@@ -18,98 +17,108 @@ import {
   networkLabel,
   num,
 } from "@/src/api/utils";
-import { Divider } from "../ui/divider";
+import { useAppColors, withAlpha } from "@/src/hooks/useAppColors";
+import { usePalette } from "@/src/hooks/usePalette";
+import { PALETTES } from "@/src/theme/palettes";
 import useSignalConfig from "./SignalConfig";
-import SignalPattern from "./SignalPattern";
-import { useAppColors } from "@/src/hooks/useAppColors";
-import GradientText from "../common/GradientText";
+import SignalBars from "./SignalBars";
+
+const TABULAR = { fontVariant: ["tabular-nums" as const] };
+
+function Weave() {
+  const palette = usePalette((s) => s.palette);
+  const colors = useAppColors("dark");
+  return (
+    <Box className="absolute right-0 bottom-0 left-0 h-1 flex-row">
+      {PALETTES[palette].weave.map((band, i) => (
+        <Box
+          key={i}
+          style={{ flex: band.width, backgroundColor: colors[band.color] }}
+        />
+      ))}
+    </Box>
+  );
+}
+
+function Reading({ label, value }: { label: string; value: string }) {
+  return (
+    <VStack className="flex-1">
+      <Text className="text-xs text-hero-muted">{label}</Text>
+      <Text
+        className="text-base font-semibold text-hero-foreground"
+        style={TABULAR}
+      >
+        {value}
+      </Text>
+    </VStack>
+  );
+}
 
 export default function HeroCard() {
   const { data: device } = useDeviceInfo();
   const { data: status } = useStatus();
   const { data: traffic } = useTraffic();
   const { data: plmn } = usePlmn();
+  // The panel keeps its dark colour in both themes, so its inks come from the dark scheme.
+  const colors = useAppColors("dark");
+  const signal = useSignalConfig(status?.SignalIcon, "dark");
+  const barColor = signal.level >= 3 ? colors.accent : signal.color;
 
-  const colors = useAppColors();
-
+  const online = isOnline(status?.ConnectionStatus);
   const name = plmn?.FullName || plmn?.ShortName;
   const country = countryFromPlmn(plmn?.Numeric);
-  const carrier = name ? (country ? `${name} · ${country}` : name) : null;
-
-  const signalConfig = useSignalConfig(status?.SignalIcon);
+  const carrier = name ? (country ? `${name} · ${country}` : name) : "—";
 
   return (
-    <Box className="relative overflow-hidden rounded-2xl bg-primary p-5 dark:bg-primary/90">
-      {/* Top row: eyebrow + status pill */}
+    <Box className="overflow-hidden rounded-2xl bg-hero px-5 pt-4 pb-6">
       <HStack className="items-center justify-between">
-        <Text className="text-xs font-semibold tracking-wider text-primary-foreground/80 uppercase">
-          {device?.DeviceName ?? "MiFi"}
-        </Text>
         <HStack space="sm" className="items-center">
-          <PulsingDot
-            isOnline={isOnline(status?.ConnectionStatus)}
-            colorClass="bg-online-dot"
-          />
-          <Text className="text-sm font-medium">
-            {isOnline(status?.ConnectionStatus) ? "Online" : "Offline"}
+          <PulsingDot isOnline={online} colorClass="bg-online-dot" />
+          <Text className="text-sm font-semibold text-hero-foreground">
+            {status ? (online ? "Online" : "Offline") : "Connecting"}
           </Text>
         </HStack>
-        <SignalPattern />
+        <Text className="text-sm text-hero-muted" numberOfLines={1}>
+          {device?.DeviceName ?? ""}
+        </Text>
       </HStack>
 
-      {/* Middle: network type + carrier + signal bars */}
-      <HStack className="mt-4 items-end justify-between">
+      <HStack className="mt-3 items-end justify-between">
         <VStack>
-          <GradientText
-            text={networkLabel(status?.CurrentNetworkTypeEx)}
-            colors={[colors.primaryForeground, colors.secondary]}
-            fontSize={36}
-            fontWeight="700"
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          />
-          <HStack className="mt-2 items-center-safe" space="md">
-            <Text className="text-sm font-bold text-primary-foreground/80">
-              {carrier ?? signalConfig.text}
-            </Text>
-            {carrier && (
-              <Text className="text-xs text-primary-foreground/70">
-                {signalConfig.text.toUpperCase()}
-              </Text>
-            )}
-          </HStack>
+          <Text className="text-5xl leading-[56px] font-bold text-hero-foreground">
+            {networkLabel(status?.CurrentNetworkTypeEx)}
+          </Text>
+          <Text className="text-base font-semibold text-hero-foreground">
+            {carrier}
+          </Text>
         </VStack>
-        <signalConfig.Icon
-          strokeWidth={2.5}
-          color={signalConfig.color}
-          size={status?.SignalIcon === 0 ? 23 : 38}
+        <VStack className="items-end gap-2 pb-0.5">
+          <SignalBars
+            level={signal.level}
+            color={barColor}
+            emptyColor={withAlpha(colors.heroForeground, 0.18)}
+          />
+          <Text className="text-sm text-hero-muted">{signal.text}</Text>
+        </VStack>
+      </HStack>
+
+      <Box className="my-4 h-px bg-hero-muted/25" />
+
+      <HStack>
+        <Reading
+          label="Download"
+          value={formatNetRate(traffic?.CurrentDownloadRate)}
+        />
+        <Reading
+          label="Upload"
+          value={formatNetRate(traffic?.CurrentUploadRate)}
+        />
+        <Reading
+          label="Uptime"
+          value={device ? formatDuration(num(device.uptime)) : "—"}
         />
       </HStack>
-
-      <Divider className="mt-0.5 h-0.5 bg-linear-180 from-primary to-secondary/70 mask-linear-from-48" />
-
-      <HStack className="items-center justify-between pt-2">
-        <HStack space="lg">
-          <HStack space="xs" className="items-center">
-            <ArrowDown size={14} color={colors.primaryForeground} />
-            <Text className="font-bold text-primary-foreground">
-              {formatNetRate(traffic?.CurrentDownloadRate)}
-            </Text>
-          </HStack>
-          <HStack space="xs" className="items-center">
-            <ArrowUp size={14} color={colors.primaryForeground} />
-            <Text className="font-bold text-primary-foreground">
-              {formatNetRate(traffic?.CurrentUploadRate)}
-            </Text>
-          </HStack>
-        </HStack>
-        <HStack space="xs" className="items-center">
-          <Power size={12} color={colors.primaryForeground} />
-          <Text className="text-xs font-semibold text-primary-foreground/80">
-            {device ? `Up ${formatDuration(num(device.uptime))}` : "—"}
-          </Text>
-        </HStack>
-      </HStack>
+      <Weave />
     </Box>
   );
 }

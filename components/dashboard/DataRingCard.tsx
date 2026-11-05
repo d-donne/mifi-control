@@ -1,60 +1,92 @@
-import { getProgress } from "@/components/common/CircularProgress";
 import { Pressable } from "@/components/ui/pressable";
 import { Text } from "@/components/ui/text";
+import { ArrowDown, ArrowUp } from "@/components/icons";
 import { formatBytes, parseDataLimit } from "@/src/api/utils";
 import { useAppColors } from "@/src/hooks/useAppColors";
 import { useDataPlan, useMonthStatistics } from "@/src/hooks/useDataUsage";
 import { useRouter } from "expo-router";
-import StatRingCard from "./StatRingCard";
+import RingCard, { TABULAR } from "./RingCard";
 
-/**
- * Usage for the current billing cycle (download + upload, which is what
- * carriers count). The ring measures against the device's data plan only
- * when one is configured (`SetMonthData=1`); otherwise it shows usage alone.
- */
+// Carriers bill download + upload together, so "used" is their sum.
 export default function DataRingCard() {
   const colors = useAppColors();
   const router = useRouter();
   const { data: month } = useMonthStatistics();
   const { data: plan } = useDataPlan();
 
-  const used =
-    (month?.CurrentMonthDownload ?? 0) + (month?.CurrentMonthUpload ?? 0);
+  const down = month?.CurrentMonthDownload ?? 0;
+  const up = month?.CurrentMonthUpload ?? 0;
+  const used = down + up;
   const limit =
     plan?.SetMonthData === 1 ? parseDataLimit(plan.DataLimit) : null;
-  const capBytes = limit && limit.bytes > 0 ? limit.bytes : null;
-
-  const ratio = capBytes ? used / capBytes : 0;
-  const activeColor =
+  const cap = limit && limit.bytes > 0 ? limit : null;
+  const ratio = cap ? used / cap.bytes : 0;
+  const capColor =
     ratio >= 1
       ? colors.ringDanger
-      : capBytes &&
-          plan &&
-          plan.MonthThreshold > 0 &&
-          ratio * 100 >= plan.MonthThreshold
+      : plan && plan.MonthThreshold > 0 && ratio * 100 >= plan.MonthThreshold
         ? colors.ringWarning
         : colors.dataRing;
+
+  const segments = !month
+    ? []
+    : cap
+      ? [{ value: ratio, color: capColor }]
+      : used > 0
+        ? [
+            { value: down / used, color: colors.dataRing },
+            { value: up / used, color: colors.dataRingUpload },
+          ]
+        : [];
 
   return (
     <Pressable
       onPress={() => router.push("/data-plan")}
       accessibilityRole="button"
-      accessibilityLabel="Edit data plan"
+      accessibilityLabel={
+        month
+          ? `Data this month ${formatBytes(used)}: ${formatBytes(down)} down, ${formatBytes(up)} up. Edit data plan`
+          : "Data this month. Edit data plan"
+      }
+      className="flex-1 data-[active=true]:opacity-80"
     >
-      <StatRingCard
-        progress={capBytes ? getProgress(used, capBytes) : 0}
-        activeColor={activeColor}
-        trackColor={colors.dataRingTrack}
-        primary={month ? formatBytes(used) : "—"}
-        secondary={
-          capBytes && limit ? `of ${limit.amount} ${limit.unit}` : "this month"
-        }
-        overlay={
+      <RingCard
+        segments={segments}
+        value={month ? formatBytes(used) : "—"}
+        label="this month"
+        detail={
           month && (
-            <Text className="text-[10px] text-muted-foreground">
+            <Text
+              className="mt-0.5 text-[10px] text-muted-foreground"
+              style={TABULAR}
+            >
               {formatBytes(month.CurrentDayUsed)} today
             </Text>
           )
+        }
+        footer={
+          month &&
+          (cap ? (
+            <Text className="text-xs text-muted-foreground" style={TABULAR}>
+              {Math.round(ratio * 100)}% of {cap.amount} {cap.unit}
+            </Text>
+          ) : (
+            <>
+              <ArrowDown size={12} color={colors.dataRing} strokeWidth={2.5} />
+              <Text className="text-xs text-foreground" style={TABULAR}>
+                {formatBytes(down)}
+              </Text>
+              <ArrowUp
+                size={12}
+                color={colors.dataRingUpload}
+                strokeWidth={2.5}
+                style={{ marginLeft: 6 }}
+              />
+              <Text className="text-xs text-foreground" style={TABULAR}>
+                {formatBytes(up)}
+              </Text>
+            </>
+          ))
         }
       />
     </Pressable>

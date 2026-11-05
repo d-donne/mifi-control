@@ -1,3 +1,4 @@
+import { Box } from "@/components/ui/box";
 import Placeholder from "@/components/common/Placeholder";
 import { Button, ButtonSpinner, ButtonText } from "@/components/ui/button";
 import { Heading } from "@/components/ui/heading";
@@ -15,7 +16,7 @@ import { useLanHosts } from "@/src/hooks/useLanHosts";
 import { useRouter } from "expo-router";
 import { Ban, ChevronDown, ChevronRight, ChevronUp } from "@/components/icons";
 import { useState } from "react";
-import { RefreshControl, ScrollView, View } from "react-native";
+import { RefreshControl, ScrollView } from "react-native";
 import {
   byDisplayName,
   displayName,
@@ -51,15 +52,15 @@ function CapacityCard({
           </Text>
         )}
       </HStack>
-      <View
+      <Box
         className="h-2 overflow-hidden rounded-full"
-        style={{ backgroundColor: colors.dataRingTrack }}
+        style={{ backgroundColor: colors.muted }}
       >
-        <View
+        <Box
           className="h-full rounded-full"
-          style={{ width: `${ratio * 100}%`, backgroundColor: colors.primary }}
+          style={{ width: `${ratio * 100}%`, backgroundColor: colors.accent }}
         />
-      </View>
+      </Box>
     </VStack>
   );
 }
@@ -88,21 +89,21 @@ function HostRow({ host }: { host: LanHost }) {
       accessibilityLabel={`${displayName(host)}, ${connected ? "connected" : "not connected"}`}
       className="flex-row items-center gap-3 py-3"
     >
-      <View>
-        <View className="h-11 w-11 items-center justify-center rounded-full bg-background">
+      <Box>
+        <Box className="h-11 w-11 items-center justify-center rounded-full bg-background">
           <DeviceIcon
             host={host}
             size={20}
-            color={connected ? colors.primary : colors.mutedForeground}
+            color={connected ? colors.accent : colors.mutedForeground}
           />
-        </View>
+        </Box>
         {connected && (
-          <View
+          <Box
             className="absolute right-0 bottom-0 h-3 w-3 rounded-full border-2 border-card"
             style={{ backgroundColor: colors.onlineDot }}
           />
         )}
-      </View>
+      </Box>
       <VStack className="flex-1">
         <HStack space="sm" className="items-center">
           <Text
@@ -116,7 +117,7 @@ function HostRow({ host }: { host: LanHost }) {
             {displayName(host)}
           </Text>
           {host.isLocalDevice === 1 && (
-            <Text className="rounded-full bg-primary/15 px-2 text-[10px] text-primary">
+            <Text className="rounded-full bg-accent/15 px-2 text-[10px] text-accent">
               This phone
             </Text>
           )}
@@ -139,9 +140,9 @@ function BlockedRow({ device }: { device: BlockedDevice }) {
   return (
     <VStack className="py-3">
       <HStack space="md" className="items-center">
-        <View className="h-11 w-11 items-center justify-center rounded-full bg-background">
+        <Box className="h-11 w-11 items-center justify-center rounded-full bg-background">
           <Ban size={20} color={colors.destructive} />
-        </View>
+        </Box>
         <VStack className="flex-1">
           <Text className="text-foreground" numberOfLines={1}>
             {name}

@@ -1,3 +1,4 @@
+import { usePalette } from "@/src/hooks/usePalette";
 import { useSession } from "@/src/hooks/useSession";
 import { SplashScreen } from "expo-router";
 import { useEffect } from "react";
@@ -10,7 +11,11 @@ void SplashScreen.preventAutoHideAsync();
  * screen flash.
  */
 export function SplashScreenController() {
-  const ready = useSession((s) => s.status !== "hydrating" && !s.restoring);
+  const sessionReady = useSession(
+    (s) => s.status !== "hydrating" && !s.restoring,
+  );
+  const paletteReady = usePalette((s) => s.hydrated);
+  const ready = sessionReady && paletteReady;
 
   useEffect(() => {
     if (ready) SplashScreen.hide();

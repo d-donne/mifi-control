@@ -210,7 +210,7 @@ export default function SignInScreen() {
           <VStack space="xl">
             <VStack space="sm">
               <Box className="mb-2 h-14 w-14 items-center justify-center rounded-2xl bg-card">
-                <Router size={28} color={colors.primary} />
+                <Router size={28} color={colors.accent} />
               </Box>
               <Heading size="2xl">Sign in to your MiFi</Heading>
             </VStack>

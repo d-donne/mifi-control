@@ -19,18 +19,18 @@ export default function SenderAvatar({
 
   return (
     <VStack
-      className="items-center justify-center rounded-full bg-primary/15"
+      className="items-center justify-center rounded-full bg-accent/15"
       style={{ width: size, height: size }}
     >
       {letter ? (
         <Text
-          className="font-semibold text-primary"
+          className="font-semibold text-accent"
           style={{ fontSize: size * 0.4 }}
         >
           {letter}
         </Text>
       ) : (
-        <User size={size * 0.45} color={colors.primary} />
+        <User size={size * 0.45} color={colors.accent} />
       )}
     </VStack>
   );

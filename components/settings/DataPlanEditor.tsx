@@ -98,7 +98,14 @@ function DataPlanForm({ plan }: { plan: DataPlan }) {
             Track usage against your bundle and warn before it runs out.
           </Text>
         </VStack>
-        <Switch value={enabled} onValueChange={setEnabled} />
+        <Switch
+          value={enabled}
+          onValueChange={setEnabled}
+          trackColor={{ false: colors.muted, true: colors.primary }}
+          thumbColor={
+            enabled ? colors.primaryForeground : colors.mutedForeground
+          }
+        />
       </HStack>
 
       <VStack space="lg" className="rounded-3xl bg-card p-5">

@@ -77,7 +77,7 @@ const ThreadRow = memo(function ThreadRow({
           <Text
             className={
               unread
-                ? "text-xs font-semibold text-primary"
+                ? "text-xs font-semibold text-accent"
                 : "text-xs text-muted-foreground"
             }
           >

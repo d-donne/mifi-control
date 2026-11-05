@@ -2,18 +2,15 @@ import { Button, ButtonText } from "@/components/ui/button";
 import { Heading } from "@/components/ui/heading";
 import { HStack } from "@/components/ui/hstack";
 import { Pressable } from "@/components/ui/pressable";
-import { Switch } from "@/components/ui/switch";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
 import { formatDuration, num, parseDataLimit } from "@/src/api/utils";
 import { useAppColors } from "@/src/hooks/useAppColors";
 import { useDataPlan } from "@/src/hooks/useDataUsage";
 import { useDeviceInfo } from "@/src/hooks/useDeviceStatus";
-import {
-  useMobileData,
-  useReboot,
-  useSetMobileData,
-} from "@/src/hooks/useMifiControls";
+import { useReboot } from "@/src/hooks/useMifiControls";
+import MobileDataRow from "@/components/settings/MobileDataRow";
+import PalettePicker from "@/components/settings/PalettePicker";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import { useSession } from "@/src/hooks/useSession";
 import { useRouter } from "expo-router";
@@ -24,7 +21,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <VStack className="rounded-3xl bg-card px-5 py-3">
+    <VStack className="rounded-2xl bg-card px-5 py-3">
       <Text className="pt-2 pb-1 text-xs font-semibold text-muted-foreground uppercase">
         {title}
       </Text>
@@ -45,37 +42,6 @@ function Row({ label, value }: { label: string; value: string | undefined }) {
         {value || "—"}
       </Text>
     </HStack>
-  );
-}
-
-function MobileDataRow() {
-  const { data: enabled } = useMobileData();
-  const toggle = useSetMobileData();
-
-  return (
-    <VStack className="py-1">
-      <HStack className="items-center justify-between">
-        <VStack className="flex-1 pr-3">
-          <Text className="text-sm text-foreground">Mobile data</Text>
-          <Text className="text-xs text-muted-foreground">
-            {enabled === false
-              ? "Off: connected devices have no internet"
-              : "Internet for every connected device"}
-          </Text>
-        </VStack>
-        <Switch
-          value={enabled ?? false}
-          onValueChange={(next) => toggle.mutate(next)}
-          disabled={enabled === undefined || toggle.isPending}
-          accessibilityLabel="Mobile data"
-        />
-      </HStack>
-      {toggle.error && (
-        <Text className="text-xs text-destructive">
-          Couldn&apos;t switch: {toggle.error.message}
-        </Text>
-      )}
-    </VStack>
   );
 }
 
@@ -177,6 +143,10 @@ export default function Settings() {
                 <ChevronRight size={16} color={colors.mutedForeground} />
               </HStack>
             </Pressable>
+          </Section>
+
+          <Section title="Appearance">
+            <PalettePicker />
           </Section>
 
           <Section title="Connection">

@@ -1,8 +1,9 @@
+import { Box } from "@/components/ui/box";
 import OfflineBanner from "@/components/common/OfflineBanner";
 import { Pressable } from "@/components/ui/pressable";
 import { Text } from "@/components/ui/text";
 import { useDeviceNotifications } from "@/src/hooks/useAllSms";
-import { useAppColors } from "@/src/hooks/useAppColors";
+import { useAppColors, withAlpha } from "@/src/hooks/useAppColors";
 import type { MaterialTopTabBarProps } from "expo-router/js-top-tabs";
 import {
   Home,
@@ -12,7 +13,7 @@ import {
   type LucideIcon,
 } from "@/components/icons";
 import { useState } from "react";
-import { Animated, View } from "react-native";
+import { Animated } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const TAB_META: Record<
@@ -58,7 +59,7 @@ export default function TabBar({
       : 0;
 
   return (
-    <View
+    <Box
       pointerEvents="box-none"
       style={{
         position: "absolute",
@@ -68,8 +69,8 @@ export default function TabBar({
       }}
     >
       <OfflineBanner />
-      <View className="rounded-full bg-card/95 p-1.5">
-        <View
+      <Box className="rounded-full bg-card/95 p-1.5">
+        <Box
           className="flex-row"
           onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
         >
@@ -83,7 +84,7 @@ export default function TabBar({
                 left: 0,
                 width: slot,
                 borderRadius: 999,
-                backgroundColor: colors.primary,
+                backgroundColor: withAlpha(colors.accent, 0.18),
                 transform: [{ translateX: highlightX }],
               }}
             />
@@ -91,7 +92,7 @@ export default function TabBar({
 
           {state.routes.map((route, index) => {
             const meta = TAB_META[route.name];
-            if (!meta) return <View key={route.key} className="flex-1" />;
+            if (!meta) return <Box key={route.key} className="flex-1" />;
             const { Icon, label } = meta;
             const focused = state.index === index;
             const active = position.interpolate({
@@ -122,27 +123,27 @@ export default function TabBar({
                 }
                 className="flex-1 items-center justify-center gap-0.5 py-2"
               >
-                <View>
+                <Box>
                   <Animated.View style={{ opacity: muted }}>
                     <Icon size={20} color={colors.mutedForeground} />
                   </Animated.View>
                   <Animated.View
                     style={{ position: "absolute", opacity: active }}
                   >
-                    <Icon size={20} color={colors.primaryForeground} />
+                    <Icon size={20} color={colors.accent} />
                   </Animated.View>
                   {badge > 0 && (
-                    <View
+                    <Box
                       className="absolute h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1"
                       style={{ top: -6, left: 12 }}
                     >
                       <Text className="text-[9px] leading-3 font-bold text-destructive-foreground">
                         {badge > 99 ? "99+" : badge}
                       </Text>
-                    </View>
+                    </Box>
                   )}
-                </View>
-                <View>
+                </Box>
+                <Box>
                   <Animated.View style={{ opacity: muted }}>
                     <Text className="text-[10px] font-medium text-muted-foreground">
                       {label}
@@ -156,16 +157,16 @@ export default function TabBar({
                       opacity: active,
                     }}
                   >
-                    <Text className="text-center text-[10px] font-medium text-primary-foreground">
+                    <Text className="text-center text-[10px] font-medium text-accent">
                       {label}
                     </Text>
                   </Animated.View>
-                </View>
+                </Box>
               </Pressable>
             );
           })}
-        </View>
-      </View>
-    </View>
+        </Box>
+      </Box>
+    </Box>
   );
 }

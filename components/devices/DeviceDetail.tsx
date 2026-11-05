@@ -19,7 +19,7 @@ import {
 import { useLanHosts } from "@/src/hooks/useLanHosts";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { ActivityIndicator, ScrollView, View } from "react-native";
+import { ActivityIndicator, ScrollView } from "react-native";
 import ConfirmDialog from "../common/ConfirmDialog";
 import { displayName, DeviceIcon, isMacLike, isUnnamed } from "./hostDisplay";
 
@@ -40,19 +40,19 @@ function DeviceSummary({ host, blocked }: { host: LanHost; blocked: boolean }) {
 
   return (
     <HStack space="md" className="items-center">
-      <View className="h-14 w-14 items-center justify-center rounded-full bg-card">
+      <Box className="h-14 w-14 items-center justify-center rounded-full bg-card">
         <DeviceIcon
           host={host}
           size={26}
-          color={connected ? colors.primary : colors.mutedForeground}
+          color={connected ? colors.accent : colors.mutedForeground}
         />
-      </View>
+      </Box>
       <VStack className="flex-1">
         <Heading size="xl" numberOfLines={2}>
           {displayName(host)}
         </Heading>
         <HStack space="xs" className="items-center">
-          <View
+          <Box
             className="h-2 w-2 rounded-full"
             style={{
               backgroundColor: blocked
