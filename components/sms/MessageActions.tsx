@@ -1,3 +1,4 @@
+import { Box } from "@/components/ui/box";
 import { HStack } from "@/components/ui/hstack";
 import { Pressable } from "@/components/ui/pressable";
 import { Text } from "@/components/ui/text";
@@ -6,8 +7,8 @@ import type { SmsMessage } from "@/src/api/types/sms";
 import { formatFullDateTime } from "@/src/api/utils/date";
 import { useAppColors } from "@/src/hooks/useAppColors";
 import * as Clipboard from "expo-clipboard";
-import { Copy, Trash2 } from "@/components/icons";
-import { Modal, ScrollView, View } from "react-native";
+import { Copy, ListChecks, Trash2 } from "@/components/icons";
+import { Modal, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { copyableNumbers } from "./threads";
 
@@ -15,10 +16,12 @@ export default function MessageActions({
   message,
   onClose,
   onDelete,
+  onSelect,
 }: {
   message: SmsMessage | null;
   onClose: () => void;
   onDelete: (message: SmsMessage) => void;
+  onSelect: (message: SmsMessage) => void;
 }) {
   const colors = useAppColors();
   const insets = useSafeAreaInsets();
@@ -39,7 +42,7 @@ export default function MessageActions({
       navigationBarTranslucent
       onRequestClose={onClose}
     >
-      <View className="flex-1 justify-end">
+      <Box className="flex-1 justify-end">
         <Pressable
           className="absolute inset-0 bg-black/50"
           onPress={onClose}
@@ -50,7 +53,7 @@ export default function MessageActions({
             className="gap-4 rounded-t-3xl bg-card px-5 pt-3"
             style={{ paddingBottom: insets.bottom + 16 }}
           >
-            <View className="h-1 w-10 self-center rounded-full bg-muted-foreground/40" />
+            <Box className="h-1 w-10 self-center rounded-full bg-muted-foreground/40" />
             <Text className="text-xs text-muted-foreground">
               {formatFullDateTime(message.time)}
             </Text>
@@ -79,7 +82,7 @@ export default function MessageActions({
                     accessibilityLabel={`Copy ${value}`}
                     className="flex-row items-center gap-1.5 rounded-full bg-background px-3.5 py-2 data-[active=true]:opacity-70"
                   >
-                    <Copy size={14} color={colors.primary} />
+                    <Copy size={14} color={colors.accent} />
                     <Text className="text-sm font-medium text-foreground">
                       {value}
                     </Text>
@@ -99,6 +102,21 @@ export default function MessageActions({
                   <Text className="text-base text-foreground">Copy text</Text>
                 </Pressable>
               ) : null}
+              {message.Index > 0 && (
+                <Pressable
+                  onPress={() => {
+                    onClose();
+                    onSelect(message);
+                  }}
+                  accessibilityRole="button"
+                  className="flex-row items-center gap-3 rounded-2xl px-2 py-3.5 data-[active=true]:bg-background"
+                >
+                  <ListChecks size={20} color={colors.foreground} />
+                  <Text className="text-base text-foreground">
+                    Select messages
+                  </Text>
+                </Pressable>
+              )}
               <Pressable
                 onPress={() => {
                   onClose();
@@ -113,7 +131,7 @@ export default function MessageActions({
             </VStack>
           </VStack>
         )}
-      </View>
+      </Box>
     </Modal>
   );
 }

@@ -1,3 +1,4 @@
+import { Box } from "@/components/ui/box";
 import { HStack } from "@/components/ui/hstack";
 import { Input, InputField } from "@/components/ui/input";
 import { Pressable } from "@/components/ui/pressable";
@@ -9,7 +10,7 @@ import { useSendSms } from "@/src/hooks/useSmsActions";
 import { useRouter } from "expo-router";
 import { X } from "@/components/icons";
 import { useMemo, useState } from "react";
-import { KeyboardAvoidingView, Modal, ScrollView, View } from "react-native";
+import { KeyboardAvoidingView, Modal, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Composer from "./Composer";
 import SenderAvatar from "./SenderAvatar";
@@ -53,7 +54,7 @@ function ComposeForm({ onClose }: { onClose: () => void }) {
       className="gap-3 rounded-t-3xl bg-background pt-3"
       style={{ paddingBottom: insets.bottom + 4 }}
     >
-      <View className="h-1 w-10 self-center rounded-full bg-muted-foreground/40" />
+      <Box className="h-1 w-10 self-center rounded-full bg-muted-foreground/40" />
       <HStack className="items-center justify-between px-5">
         <Text className="text-lg font-semibold text-foreground">
           New message
@@ -138,14 +139,14 @@ export default function ComposeSheet({
       onRequestClose={onClose}
     >
       <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
-        <View className="flex-1 justify-end">
+        <Box className="flex-1 justify-end">
           <Pressable
             className="absolute inset-0 bg-black/50"
             onPress={onClose}
             accessibilityLabel="Close"
           />
           {visible && <ComposeForm onClose={onClose} />}
-        </View>
+        </Box>
       </KeyboardAvoidingView>
     </Modal>
   );

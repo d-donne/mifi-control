@@ -1,3 +1,4 @@
+import { Box } from "@/components/ui/box";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import Placeholder from "@/components/common/Placeholder";
 import { Button, ButtonText } from "@/components/ui/button";
@@ -20,9 +21,20 @@ import {
 } from "@/src/hooks/useSmsActions";
 import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
-import { ChevronLeft } from "@/components/icons";
+import {
+  CheckCheck,
+  ChevronLeft,
+  Circle,
+  CircleCheck,
+  Trash2,
+  X,
+} from "@/components/icons";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { KeyboardAvoidingView, RefreshControl, View } from "react-native";
+import {
+  BackHandler,
+  KeyboardAvoidingView,
+  RefreshControl,
+} from "react-native";
 import Composer from "./Composer";
 import MessageActions from "./MessageActions";
 import SenderAvatar from "./SenderAvatar";
@@ -124,22 +136,34 @@ function DaySeparator({ label }: { label: string }) {
 
 const MessageBubble = memo(function MessageBubble({
   item,
+  selecting,
+  selected,
   onLongPress,
+  onToggle,
 }: {
   item: MessageItem;
+  selecting: boolean;
+  selected: boolean;
   onLongPress: (message: SmsMessage) => void;
+  onToggle: (message: SmsMessage) => void;
 }) {
+  const colors = useAppColors();
   const { message, outgoing, grouped, status, failed } = item;
   const content = message.Content.trim();
 
-  return (
+  const bubble = (
     <VStack
-      className={outgoing ? "items-end" : "items-start"}
-      style={{ marginTop: grouped ? 3 : 12 }}
+      className={`${selecting ? "flex-1 " : ""}${outgoing ? "items-end" : "items-start"}`}
     >
       <Pressable
-        onLongPress={() => onLongPress(message)}
-        accessibilityHint="Long press for copy and delete"
+        onPress={selecting ? () => onToggle(message) : undefined}
+        onLongPress={() =>
+          selecting ? onToggle(message) : onLongPress(message)
+        }
+        accessibilityState={selecting ? { selected } : undefined}
+        accessibilityHint={
+          selecting ? "Tap to select" : "Long press for copy, select and delete"
+        }
         accessibilityLabel={`${outgoing ? "Sent" : "Received"} ${formatFullDateTime(message.time)}: ${content || "message still arriving"}${status ? `. ${status}` : ""}`}
         className={
           outgoing
@@ -191,7 +215,83 @@ const MessageBubble = memo(function MessageBubble({
       )}
     </VStack>
   );
+
+  if (!selecting) {
+    return <Box style={{ marginTop: grouped ? 3 : 12 }}>{bubble}</Box>;
+  }
+  return (
+    <Pressable
+      onPress={() => onToggle(message)}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: selected }}
+      className={
+        selected
+          ? "-mx-2 flex-row items-center gap-2 rounded-2xl bg-accent/15 px-2 py-1"
+          : "-mx-2 flex-row items-center gap-2 rounded-2xl px-2 py-1"
+      }
+      style={{ marginTop: grouped ? 2 : 10 }}
+    >
+      {selected ? (
+        <CircleCheck size={22} color={colors.accent} />
+      ) : (
+        <Circle size={22} color={colors.mutedForeground} />
+      )}
+      {bubble}
+    </Pressable>
+  );
 });
+
+function SelectionHeader({
+  count,
+  allSelected,
+  onCancel,
+  onSelectAll,
+  onDelete,
+}: {
+  count: number;
+  allSelected: boolean;
+  onCancel: () => void;
+  onSelectAll: () => void;
+  onDelete: () => void;
+}) {
+  const colors = useAppColors();
+  return (
+    <HStack className="items-center gap-2 px-2 pt-1 pb-2">
+      <Pressable
+        onPress={onCancel}
+        accessibilityRole="button"
+        accessibilityLabel="Cancel selection"
+        className="h-11 w-11 items-center justify-center rounded-full data-[active=true]:bg-card"
+      >
+        <X size={22} color={colors.foreground} />
+      </Pressable>
+      <Text className="flex-1 text-base font-semibold text-foreground">
+        {count} selected
+      </Text>
+      <Pressable
+        onPress={onSelectAll}
+        disabled={allSelected}
+        accessibilityRole="button"
+        accessibilityLabel="Select all"
+        className="h-11 w-11 items-center justify-center rounded-full data-[active=true]:bg-card"
+      >
+        <CheckCheck
+          size={22}
+          color={allSelected ? colors.mutedForeground : colors.foreground}
+        />
+      </Pressable>
+      <Pressable
+        onPress={onDelete}
+        disabled={count === 0}
+        accessibilityRole="button"
+        accessibilityLabel={`Delete ${count} messages`}
+        className="h-11 w-11 items-center justify-center rounded-full data-[active=true]:bg-card"
+      >
+        <Trash2 size={22} color={colors.destructive} />
+      </Pressable>
+    </HStack>
+  );
+}
 
 function ThreadHeader({ phone, count }: { phone: string; count?: number }) {
   const router = useRouter();
@@ -227,9 +327,9 @@ function ThreadHeader({ phone, count }: { phone: string; count?: number }) {
 function BubbleSkeleton({ outgoing }: { outgoing: boolean }) {
   return (
     <VStack className={outgoing ? "items-end" : "items-start"}>
-      <View className="mt-3">
+      <Box className="mt-3">
         <Placeholder width={outgoing ? "45%" : "60%"} height={52} radius={18} />
-      </View>
+      </Box>
     </VStack>
   );
 }
@@ -265,12 +365,45 @@ export default function ThreadView({ phone }: { phone: string }) {
   }, [messages, reports, markRead]);
 
   const [actionsFor, setActionsFor] = useState<SmsMessage | null>(null);
-  const [deleting, setDeleting] = useState<SmsMessage | null>(null);
+  const [selected, setSelected] = useState<Set<string> | null>(null);
+  const selecting = selected !== null;
+  const chosen = useMemo(
+    () => (selected ? messages.filter((m) => selected.has(messageKey(m))) : []),
+    [messages, selected],
+  );
+  const deletable = messages.filter((m) => m.Index > 0);
+
+  const toggle = useCallback((message: SmsMessage) => {
+    if (message.Index <= 0) return;
+    const key = messageKey(message);
+    setSelected((current) => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next.size > 0 ? next : null;
+    });
+  }, []);
+
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener(
+      "hardwareBackPress",
+      () => {
+        if (!selecting) return false;
+        setSelected(null);
+        return true;
+      },
+    );
+    return () => subscription.remove();
+  }, [selecting]);
+
+  const [deleting, setDeleting] = useState<SmsMessage[] | null>(null);
   const { mutate: deleteMessages } = useDeleteSms();
   const confirmDelete = () => {
     if (!deleting) return;
-    deleteMessages([deleting.Index]);
-    if (messages.length === 1) router.back();
+    const indexes = deleting.map((m) => m.Index).filter((index) => index > 0);
+    deleteMessages(indexes);
+    setSelected(null);
+    if (indexes.length >= deletable.length) router.back();
   };
 
   const { mutate: send, error: sendError } = useSendSms();
@@ -280,17 +413,35 @@ export default function ThreadView({ phone }: { phone: string }) {
       item.type === "day" ? (
         <DaySeparator label={item.label} />
       ) : (
-        <MessageBubble item={item} onLongPress={setActionsFor} />
+        <MessageBubble
+          item={item}
+          selecting={selected !== null}
+          selected={selected?.has(messageKey(item.message)) ?? false}
+          onLongPress={setActionsFor}
+          onToggle={toggle}
+        />
       ),
-    [],
+    [selected, toggle],
   );
 
   return (
     <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
-      <ThreadHeader
-        phone={phone}
-        count={all.data ? messages.length : undefined}
-      />
+      {selecting ? (
+        <SelectionHeader
+          count={chosen.length}
+          allSelected={chosen.length === deletable.length}
+          onCancel={() => setSelected(null)}
+          onSelectAll={() =>
+            setSelected(new Set(deletable.map((m) => messageKey(m))))
+          }
+          onDelete={() => setDeleting(chosen)}
+        />
+      ) : (
+        <ThreadHeader
+          phone={phone}
+          count={all.data ? messages.length : undefined}
+        />
+      )}
 
       {all.isPending ? (
         <VStack className="px-4">
@@ -313,6 +464,7 @@ export default function ThreadView({ phone }: { phone: string }) {
       ) : (
         <FlashList
           data={items}
+          extraData={selected}
           renderItem={renderItem}
           keyExtractor={(item) => item.key}
           getItemType={(item) => item.type}
@@ -345,7 +497,7 @@ export default function ThreadView({ phone }: { phone: string }) {
           }
         />
       )}
-      {canReply(phone) && (
+      {canReply(phone) && !selecting && (
         <Composer
           disabled={!all.data}
           error={sendError?.message}
@@ -357,13 +509,22 @@ export default function ThreadView({ phone }: { phone: string }) {
       <MessageActions
         message={actionsFor}
         onClose={() => setActionsFor(null)}
-        onDelete={setDeleting}
+        onDelete={(message) => setDeleting([message])}
+        onSelect={toggle}
       />
       <ConfirmDialog
         isOpen={deleting !== null}
         onClose={() => setDeleting(null)}
-        title="Delete message?"
-        message="It will be removed from the MiFi."
+        title={
+          deleting && deleting.length > 1
+            ? `Delete ${deleting.length} messages?`
+            : "Delete message?"
+        }
+        message={
+          deleting && deleting.length > 1
+            ? "They will be removed from the MiFi."
+            : "It will be removed from the MiFi."
+        }
         confirmLabel="Delete"
         onConfirm={confirmDelete}
       />
