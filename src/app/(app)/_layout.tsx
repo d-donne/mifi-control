@@ -7,8 +7,7 @@ export default function AppLayout() {
   const colors = useAppColors();
   const sheet: NativeStackNavigationOptions = {
     presentation: "formSheet",
-    sheetAllowedDetents: [0.75, 1],
-    sheetInitialDetentIndex: 0,
+    sheetAllowedDetents: "fitToContents",
     sheetCornerRadius: 28,
     contentStyle: { backgroundColor: colors.background },
   };
