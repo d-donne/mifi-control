@@ -1,175 +1,75 @@
+import ConfirmDialog from "@/components/common/ConfirmDialog";
+import { ChevronRight, LogOut, Router } from "@/components/icons";
+import RestartCard from "@/components/settings/RestartCard";
+import {
+  AppCard,
+  AppearanceCard,
+  NetworkCard,
+} from "@/components/settings/SettingsCards";
+import { Box } from "@/components/ui/box";
 import { Button, ButtonText } from "@/components/ui/button";
 import { Heading } from "@/components/ui/heading";
-import { HStack } from "@/components/ui/hstack";
 import { Pressable } from "@/components/ui/pressable";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
-import { formatDuration, num, parseDataLimit } from "@/src/api/utils";
+import { formatDuration, num } from "@/src/api/utils";
 import { useAppColors } from "@/src/hooks/useAppColors";
-import { useDataPlan } from "@/src/hooks/useDataUsage";
 import { useDeviceInfo } from "@/src/hooks/useDeviceStatus";
-import { useReboot } from "@/src/hooks/useMifiControls";
-import AppUpdates from "@/components/settings/AppUpdates";
-import MobileDataRow from "@/components/settings/MobileDataRow";
-import {
-  DataRoamingRow,
-  NetworkModeRow,
-} from "@/components/settings/MobileNetworkRows";
-import PalettePicker from "@/components/settings/PalettePicker";
-import ConfirmDialog from "@/components/common/ConfirmDialog";
 import { useSession } from "@/src/hooks/useSession";
 import { useRouter } from "expo-router";
-import { ChevronRight, LogOut } from "@/components/icons";
-import { useState, type ReactNode } from "react";
-import { ActivityIndicator, ScrollView } from "react-native";
+import { useState } from "react";
+import { ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <VStack className="rounded-2xl bg-card px-5 py-3">
-      <Text className="pt-2 pb-1 text-xs font-semibold text-muted-foreground uppercase">
-        {title}
-      </Text>
-      {children}
-    </VStack>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string | undefined }) {
-  return (
-    <HStack className="items-center justify-between py-2">
-      <Text className="text-sm text-muted-foreground">{label}</Text>
-      <Text
-        className="ml-4 flex-1 text-right text-sm text-foreground"
-        numberOfLines={1}
-        selectable
-      >
-        {value || "—"}
-      </Text>
-    </HStack>
-  );
-}
-
-function RestartRow() {
+function DeviceCard() {
   const colors = useAppColors();
-  const mutation = useReboot();
-  const [confirming, setConfirming] = useState(false);
+  const router = useRouter();
+  const { data: device } = useDeviceInfo();
 
   return (
-    <>
-      <ConfirmDialog
-        isOpen={confirming}
-        onClose={() => setConfirming(false)}
-        title="Restart the MiFi?"
-        message="Every device, including this phone, loses Wi-Fi for about a minute."
-        confirmLabel="Restart"
-        onConfirm={() => mutation.mutate()}
-      />
-      <Pressable
-        onPress={() => setConfirming(true)}
-        disabled={mutation.isPending || mutation.isSuccess}
-        accessibilityRole="button"
-        className="flex-row items-center justify-between py-2"
-      >
-        <VStack className="flex-1 pr-3">
-          <Text className="text-sm text-foreground">Restart MiFi</Text>
-          <Text className="text-xs text-muted-foreground">
-            {mutation.isSuccess
-              ? "Restarting… the app reconnects when it's back"
-              : mutation.error
-                ? `Couldn't restart: ${mutation.error.message}`
-                : "Takes about a minute"}
-          </Text>
-        </VStack>
-        {mutation.isPending ? (
-          <ActivityIndicator color={colors.mutedForeground} />
-        ) : (
-          <ChevronRight size={16} color={colors.mutedForeground} />
-        )}
-      </Pressable>
-    </>
+    <Pressable
+      onPress={() => router.push("/settings/device")}
+      accessibilityRole="button"
+      accessibilityLabel="This MiFi"
+      accessibilityHint="Opens device details"
+      className="flex-row items-center gap-4 rounded-3xl bg-card px-4 py-3.5 data-[active=true]:opacity-80"
+    >
+      <Box className="h-12 w-12 items-center justify-center rounded-xl bg-secondary">
+        <Router size={22} color={colors.primary} />
+      </Box>
+      <VStack className="flex-1">
+        <Text className="font-semibold text-foreground">
+          {device ? `HUAWEI ${device.DeviceName}` : "Your MiFi"}
+        </Text>
+        <Text className="text-xs text-muted-foreground" numberOfLines={1}>
+          {device
+            ? `Up ${formatDuration(num(device.uptime))} · firmware ${device.SoftwareVersion}`
+            : "Loading…"}
+        </Text>
+      </VStack>
+      <ChevronRight size={16} color={colors.mutedForeground} />
+    </Pressable>
   );
-}
-
-function describePlan(plan: ReturnType<typeof useDataPlan>["data"]): string {
-  if (!plan) return "—";
-  const limit = parseDataLimit(plan.DataLimit);
-  if (plan.SetMonthData !== 1 || !limit || limit.amount === 0) return "Not set";
-  return `${limit.amount} ${limit.unit} · resets day ${plan.StartDay}`;
 }
 
 export default function Settings() {
   const colors = useAppColors();
-  const router = useRouter();
-  const { data: plan } = useDataPlan();
-  const credentials = useSession((s) => s.credentials);
   const signOut = useSession((s) => s.signOut);
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);
-  const { data: device } = useDeviceInfo();
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <ScrollView contentContainerClassName="px-4 pt-2 pb-28">
-        <VStack space="lg">
+        <VStack space="md">
           <Heading size="2xl">Settings</Heading>
 
-          <Section title="Device">
-            <Row
-              label="Model"
-              value={device ? `HUAWEI ${device.DeviceName}` : undefined}
-            />
-            <Row label="Firmware" value={device?.SoftwareVersion} />
-            <Row label="IMEI" value={device?.Imei} />
-            <Row
-              label="Uptime"
-              value={device ? formatDuration(num(device.uptime)) : undefined}
-            />
-          </Section>
+          <DeviceCard />
 
-          <Section title="Controls">
-            <MobileDataRow />
-            <RestartRow />
-          </Section>
+          <NetworkCard />
+          <AppearanceCard />
+          <AppCard />
 
-          <Section title="Mobile network">
-            <DataRoamingRow />
-            <NetworkModeRow />
-          </Section>
-
-          <Section title="Usage">
-            <Pressable
-              onPress={() => router.push("/data-plan")}
-              accessibilityRole="button"
-              className="flex-row items-center justify-between py-2"
-            >
-              <Text className="text-sm text-muted-foreground">Data plan</Text>
-              <HStack
-                space="xs"
-                className="ml-4 flex-1 items-center justify-end"
-              >
-                <Text className="text-sm text-foreground" numberOfLines={1}>
-                  {describePlan(plan)}
-                </Text>
-                <ChevronRight size={16} color={colors.mutedForeground} />
-              </HStack>
-            </Pressable>
-          </Section>
-
-          <Section title="Appearance">
-            <PalettePicker />
-          </Section>
-
-          <Section title="Connection">
-            <Row
-              label="Address"
-              value={credentials?.baseUrl.replace(/^https?:\/\//, "")}
-            />
-            <Row label="Signed in as" value={credentials?.username} />
-          </Section>
-
-          <Section title="App">
-            <AppUpdates />
-          </Section>
+          <RestartCard />
 
           <Button
             variant="outline"

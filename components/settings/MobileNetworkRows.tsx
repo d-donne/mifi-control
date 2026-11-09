@@ -13,7 +13,7 @@ import {
 } from "@/src/hooks/useMifiControls";
 import { useState } from "react";
 
-const MODE_LABELS: Record<string, string> = {
+export const MODE_LABELS: Record<string, string> = {
   "00": "Auto",
   "03": "4G only",
   "02": "3G only",
@@ -69,7 +69,9 @@ export function NetworkModeRow() {
       <VStack>
         <Text className="text-sm text-foreground">Network type</Text>
         <Text className="text-xs text-muted-foreground">
-          Auto picks the best available network
+          {change.isPending
+            ? "Reconnecting to the network…"
+            : "Auto picks the best available network"}
         </Text>
       </VStack>
       {options.length > 0 && (

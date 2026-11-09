@@ -8,10 +8,14 @@ import {
   setNetworkMode,
   type NetworkMode,
 } from "@/src/api/routes";
+import { HiLinkError } from "@/src/api/errors";
+import { HiLinkClient } from "@/src/api/main";
 import { useHiLinkClient } from "@/src/hooks/HiLinkProvider";
 import { STATUS_QUERY_KEY } from "@/src/hooks/useDeviceStatus";
 import { useHiLinkQuery } from "@/src/hooks/useHiLinkQuery";
+import { useSession } from "@/src/hooks/useSession";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { create } from "zustand";
 
 export const MOBILE_DATA_QUERY_KEY = ["mobile-data"] as const;
 export const ROAMING_QUERY_KEY = ["roaming"] as const;
@@ -47,9 +51,90 @@ export function useSetMobileData() {
   });
 }
 
-export function useReboot() {
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// The MiFi drops off for 40–60 s while it restarts.
+const RESTART_POLL_MS = 3_000;
+const RESTART_MIN_WAIT_MS = 20_000;
+const RESTART_GIVE_UP_MS = 180_000;
+
+async function waitForRestart(baseUrl: string): Promise<void> {
+  const started = Date.now();
+  let wentDown = false;
+  while (Date.now() - started < RESTART_GIVE_UP_MS) {
+    await sleep(RESTART_POLL_MS);
+    const up = await HiLinkClient.isReachable(baseUrl);
+    if (!up) wentDown = true;
+    else if (wentDown || Date.now() - started > RESTART_MIN_WAIT_MS) return;
+  }
+  throw new Error("The MiFi hasn't come back after 3 minutes");
+}
+
+export type RestartStage = "sending" | "waiting" | "done" | "failed";
+
+const useRestartState = create<{
+  stage: RestartStage | null;
+  error: string | null;
+}>(() => ({ stage: null, error: null }));
+
+const isRestarting = (stage: RestartStage | null) =>
+  stage === "sending" || stage === "waiting";
+
+export function restartStatus(
+  stage: RestartStage | null,
+  error: string | null,
+): string {
+  switch (stage) {
+    case "sending":
+      return "Restarting…";
+    case "waiting":
+      return "Waiting for the MiFi to come back (about a minute)";
+    case "done":
+      return "Restarted and back online";
+    case "failed":
+      return `Couldn't restart: ${error}`;
+    default:
+      return "Takes about a minute";
+  }
+}
+
+/** Shared across screens, so a restart started anywhere shows its progress everywhere. */
+export function useRestart() {
   const client = useHiLinkClient();
-  return useMutation({ mutationFn: () => reboot(client) });
+  const queryClient = useQueryClient();
+  const baseUrl = useSession((s) => s.credentials?.baseUrl);
+  const { stage, error } = useRestartState();
+
+  async function start() {
+    if (isRestarting(useRestartState.getState().stage)) return;
+    useRestartState.setState({ stage: "sending", error: null });
+    try {
+      try {
+        await reboot(client);
+      } catch (cause) {
+        // The MiFi often restarts before it answers; only its own refusal is a failure.
+        if (cause instanceof HiLinkError) throw cause;
+      }
+      useRestartState.setState({ stage: "waiting" });
+      if (baseUrl) await waitForRestart(baseUrl);
+      useRestartState.setState({ stage: "done" });
+    } catch (cause) {
+      useRestartState.setState({
+        stage: "failed",
+        error: cause instanceof Error ? cause.message : String(cause),
+      });
+    } finally {
+      void queryClient.invalidateQueries();
+    }
+  }
+
+  return {
+    stage,
+    busy: isRestarting(stage),
+    status: restartStatus(stage, error),
+    failed: stage === "failed",
+    start,
+  };
 }
 
 export function useDataRoaming() {
@@ -91,11 +176,29 @@ export function useSetNetworkMode() {
   const client = useHiLinkClient();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (mode: string) => setNetworkMode(client, mode),
-    onSuccess: (_result, mode) => {
+    mutationFn: async (mode: string) => {
+      try {
+        await setNetworkMode(client, mode);
+      } catch (error) {
+        // The answer can be lost while the MiFi reconnects; check what it applied.
+        if (error instanceof HiLinkError) throw error;
+        await sleep(3_000);
+        const applied = await getNetworkMode(client);
+        if (applied.mode !== mode) throw error;
+      }
+    },
+    onMutate: async (mode) => {
+      await queryClient.cancelQueries({ queryKey: NETWORK_MODE_QUERY_KEY });
+      const previous = queryClient.getQueryData<NetworkMode>(
+        NETWORK_MODE_QUERY_KEY,
+      );
       queryClient.setQueryData<NetworkMode>(NETWORK_MODE_QUERY_KEY, (old) =>
         old ? { ...old, mode } : old,
       );
+      return { previous };
+    },
+    onError: (_error, _mode, context) => {
+      queryClient.setQueryData(NETWORK_MODE_QUERY_KEY, context?.previous);
     },
     onSettled: () =>
       Promise.all([

@@ -57,3 +57,14 @@ export function parseDataLimit(
   const unit = match[2].toUpperCase() as DataUnit;
   return { amount, unit, bytes: amount * (unit === "GB" ? GB : MB) };
 }
+
+export function describePlan(
+  plan:
+    | { DataLimit: string; SetMonthData: number; StartDay: number }
+    | undefined,
+): string | undefined {
+  if (!plan) return undefined;
+  const limit = parseDataLimit(plan.DataLimit);
+  if (plan.SetMonthData !== 1 || !limit || limit.amount === 0) return "Not set";
+  return `${limit.amount} ${limit.unit} · resets day ${plan.StartDay}`;
+}
