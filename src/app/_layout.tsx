@@ -9,7 +9,9 @@ import {
   QueryClient,
   QueryClientProvider,
 } from "@tanstack/react-query";
-import { Stack } from "expo-router";
+import { useAppColors } from "@/src/hooks/useAppColors";
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from "expo-router";
+import { useUniwind } from "uniwind";
 import { AppState } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -69,16 +71,39 @@ export default function App() {
   );
 }
 
+// Without this, navigators paint React Navigation's light default behind
+// screens that haven't rendered yet (visible as a flash on lazy tabs).
+function useNavigationTheme(): typeof DefaultTheme {
+  const colors = useAppColors();
+  const { theme } = useUniwind();
+  const base = theme === "dark" ? DarkTheme : DefaultTheme;
+  return {
+    ...base,
+    colors: {
+      ...base.colors,
+      primary: colors.primary,
+      background: colors.background,
+      card: colors.card,
+      text: colors.foreground,
+      border: colors.border,
+      notification: colors.destructive,
+    },
+  };
+}
+
 function RootNavigator() {
   const connected = useSession((s) => s.status === "connected");
+  const theme = useNavigationTheme();
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Protected guard={connected}>
-        <Stack.Screen name="(app)" />
-      </Stack.Protected>
-      <Stack.Protected guard={!connected}>
-        <Stack.Screen name="sign-in" />
-      </Stack.Protected>
-    </Stack>
+    <ThemeProvider value={theme}>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Protected guard={connected}>
+          <Stack.Screen name="(app)" />
+        </Stack.Protected>
+        <Stack.Protected guard={!connected}>
+          <Stack.Screen name="sign-in" />
+        </Stack.Protected>
+      </Stack>
+    </ThemeProvider>
   );
 }
