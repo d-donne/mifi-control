@@ -19,3 +19,29 @@ export async function setMobileData(
     },
   });
 }
+
+async function getDialupConnection(
+  client: HiLinkClient,
+): Promise<Record<string, string>> {
+  const { response } = await client.requestAs<{
+    response: Record<string, string>;
+  }>("/api/dialup/connection");
+  return response;
+}
+
+export async function getDataRoaming(client: HiLinkClient): Promise<boolean> {
+  const connection = await getDialupConnection(client);
+  return flag(connection.RoamAutoConnectEnable) === 1;
+}
+
+/** The web UI posts the whole connection object back with one field changed. */
+export async function setDataRoaming(
+  client: HiLinkClient,
+  enabled: boolean,
+): Promise<void> {
+  const connection = await getDialupConnection(client);
+  await client.requestAs("/api/dialup/connection", {
+    method: "POST",
+    bodyObj: { ...connection, RoamAutoConnectEnable: enabled ? 1 : 0 },
+  });
+}

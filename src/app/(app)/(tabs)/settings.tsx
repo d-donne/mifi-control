@@ -11,6 +11,10 @@ import { useDeviceInfo } from "@/src/hooks/useDeviceStatus";
 import { useReboot } from "@/src/hooks/useMifiControls";
 import AppUpdates from "@/components/settings/AppUpdates";
 import MobileDataRow from "@/components/settings/MobileDataRow";
+import {
+  DataRoamingRow,
+  NetworkModeRow,
+} from "@/components/settings/MobileNetworkRows";
 import PalettePicker from "@/components/settings/PalettePicker";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import { useSession } from "@/src/hooks/useSession";
@@ -125,6 +129,11 @@ export default function Settings() {
           <Section title="Controls">
             <MobileDataRow />
             <RestartRow />
+          </Section>
+
+          <Section title="Mobile network">
+            <DataRoamingRow />
+            <NetworkModeRow />
           </Section>
 
           <Section title="Usage">
