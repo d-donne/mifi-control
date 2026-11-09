@@ -81,7 +81,24 @@ export interface SmsListResponse {
   Messages: SmsMessage[];
 }
 
-/** `sms-count` keys unverified on this firmware — permissive for now. */
-export interface SmsCountResponse {
-  [key: string]: unknown;
+export interface SmsConfig {
+  /** Message centre number, e.g. "+233244500000". */
+  Sca: string;
+  /** 0 = device storage, 1 = SIM. */
+  SaveMode: number;
+}
+
+/** Device storage: inbox, sent and drafts share `LocalMax` slots. */
+export interface SmsCount {
+  LocalUnread: number;
+  LocalInbox: number;
+  LocalOutbox: number;
+  LocalDraft: number;
+  LocalMax: number;
+  SimInbox: number;
+  SimOutbox: number;
+  SimDraft: number;
+  /** Slots in use on the SIM; can exceed what the SIM boxes list. */
+  SimUsed: number;
+  SimMax: number;
 }

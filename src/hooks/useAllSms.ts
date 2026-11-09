@@ -1,6 +1,12 @@
 import { messageKey } from "@/components/sms/threads";
-import type { SmsMessage } from "@/src/api/types/sms";
-import { fetchAllSms, getMonitoring, isDeliveryReport } from "@/src/api/routes";
+import type { SmsCount, SmsMessage } from "@/src/api/types/sms";
+import {
+  fetchAllSms,
+  getMonitoring,
+  getSmsConfig,
+  getSmsCount,
+  isDeliveryReport,
+} from "@/src/api/routes";
 import { BoxType, Smstat } from "@/src/api/types/sms";
 import { useHiLinkClient } from "@/src/hooks/HiLinkProvider";
 import { useHiLinkQuery } from "@/src/hooks/useHiLinkQuery";
@@ -28,6 +34,8 @@ export interface AllSms {
   inboxCount: number;
   sentCount: number;
   pages: number;
+  /** Device slot counts from the same refresh; null until one succeeds. */
+  storage: SmsCount | null;
   error: Error | null;
   deferred: boolean;
 }
@@ -63,6 +71,7 @@ export function useAllSms() {
       await loadOffsets();
       const inbox = await fetchAllSms(client, BoxType.LOCAL_INBOX);
       const sent = await fetchAllSms(client, BoxType.LOCAL_SENT);
+      const storage = await getSmsCount(client).catch(() => null);
       const received = [...inbox.messages, ...sent.messages];
 
       const fetchedAt = Date.now();
@@ -84,10 +93,9 @@ export function useAllSms() {
       // (seen 2026-11-04); keep the ones already seen this session.
       const reports = all.filter(isDeliveryReport);
       const fetched = new Set(reports.map(messageKey));
+      const previous = queryClient.getQueryData<AllSms>(ALL_SMS_QUERY_KEY);
       const earlier =
-        queryClient
-          .getQueryData<AllSms>(ALL_SMS_QUERY_KEY)
-          ?.reports.filter((r) => !fetched.has(messageKey(r))) ?? [];
+        previous?.reports.filter((r) => !fetched.has(messageKey(r))) ?? [];
 
       return {
         messages,
@@ -95,6 +103,7 @@ export function useAllSms() {
         inboxCount: messages.length - sent.messages.length,
         sentCount: sent.messages.length,
         pages: inbox.pages + sent.pages,
+        storage: storage ?? previous?.storage ?? null,
         error: inbox.error ?? sent.error ?? null,
         deferred: inbox.deferred || sent.deferred,
       };
@@ -108,6 +117,14 @@ export function useAllSms() {
     },
     refetchIntervalInBackground: true,
     staleTime: 10_000,
+  });
+}
+
+export function useSmsConfig() {
+  return useHiLinkQuery({
+    queryKey: ["sms", "config"],
+    queryFn: getSmsConfig,
+    staleTime: 5 * 60_000,
   });
 }
 

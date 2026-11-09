@@ -20,6 +20,7 @@ import { memo, useCallback, useMemo, useState } from "react";
 import { RefreshControl } from "react-native";
 import ComposeSheet from "./ComposeSheet";
 import SenderAvatar from "./SenderAvatar";
+import { smsStorageLevel, SmsSettingsButton } from "./SmsStorage";
 import {
   filterThreads,
   groupThreads,
@@ -139,12 +140,14 @@ function EmptyState({ search }: { search: string }) {
 
 export default function SmsList() {
   const colors = useAppColors();
+  const router = useRouter();
   const clearance = useTabBarClearance();
   const [search, setSearch] = useState("");
 
   const all = useAllSms();
   const partialError = all.data?.error;
-  const storageFull = useDeviceNotifications().data?.SmsStorageFull === 1;
+  const deviceSaysFull = useDeviceNotifications().data?.SmsStorageFull === 1;
+  const storage = smsStorageLevel(all.data?.storage, deviceSaysFull);
 
   const threads = useMemo(
     () => groupThreads(all.data?.messages ?? []),
@@ -185,10 +188,16 @@ export default function SmsList() {
   return (
     <VStack className="flex-1">
       <VStack className="gap-3 px-4 pt-2 pb-2">
-        <VStack>
-          <Heading size="2xl">SMS</Heading>
-          <Text className="text-sm text-muted-foreground">{summary}</Text>
-        </VStack>
+        <HStack className="items-center justify-between gap-3">
+          <VStack className="flex-1">
+            <Heading size="2xl">SMS</Heading>
+            <Text className="text-sm text-muted-foreground">{summary}</Text>
+          </VStack>
+          <SmsSettingsButton
+            tone={storage?.tone}
+            onPress={() => router.push("/sms-settings")}
+          />
+        </HStack>
         <Input className="h-11 rounded-full border-0 bg-card px-4">
           <InputSlot>
             <Search size={16} color={colors.mutedForeground} />
@@ -211,16 +220,6 @@ export default function SmsList() {
             </InputSlot>
           )}
         </Input>
-        {storageFull && (
-          <VStack className="rounded-2xl bg-destructive/15 px-4 py-3">
-            <Text className="text-sm font-semibold text-destructive">
-              SMS storage is full
-            </Text>
-            <Text className="text-xs text-foreground">
-              The MiFi can&apos;t receive new texts until some are deleted.
-            </Text>
-          </VStack>
-        )}
       </VStack>
 
       {all.isPending ? (

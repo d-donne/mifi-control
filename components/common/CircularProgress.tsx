@@ -23,6 +23,7 @@ function Arc({
   start,
   length,
   color,
+  lineCap,
 }: {
   center: number;
   radius: number;
@@ -30,6 +31,7 @@ function Arc({
   start: number;
   length: number;
   color: string;
+  lineCap: "round" | "butt";
 }) {
   const circumference = 2 * Math.PI * radius;
   const drawn = useSharedValue(0);
@@ -51,7 +53,7 @@ function Arc({
       r={radius}
       stroke={color}
       strokeWidth={strokeWidth}
-      strokeLinecap="round"
+      strokeLinecap={lineCap}
       fill="none"
       strokeDasharray={circumference}
       animatedProps={animatedProps}
@@ -83,18 +85,24 @@ export default function CircularProgress({
   size = 128,
   strokeWidth = 10,
   trackColor,
+  lineCap = "round",
   children,
 }: {
   segments: RingSegment[];
   size?: number;
   strokeWidth?: number;
   trackColor: string;
+  /** "butt" keeps small remainders visible; round caps cover them. */
+  lineCap?: "round" | "butt";
   children?: ReactNode;
 }) {
   const center = size / 2;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
-  const gap = segments.length > 1 ? (strokeWidth + 5) / circumference : 0;
+  const gap =
+    segments.length < 2
+      ? 0
+      : (lineCap === "round" ? strokeWidth + 5 : 2.5) / circumference;
 
   const arcs = layoutArcs(segments, gap);
 
@@ -122,6 +130,7 @@ export default function CircularProgress({
               start={arc.start}
               length={arc.length}
               color={arc.color}
+              lineCap={lineCap}
             />
           ),
         )}

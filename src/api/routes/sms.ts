@@ -3,7 +3,8 @@ import type {
   BoxType,
   RawSmsMessage,
   RawSmsListResponse,
-  SmsCountResponse,
+  SmsConfig,
+  SmsCount,
   SmsListResponse,
   SmsMessage,
   SortType,
@@ -14,7 +15,7 @@ import {
   Smstat as SmstatValues,
   SortType as SortTypeValues,
 } from "../types/sms";
-import { decodeHtmlEntities, num } from "../utils";
+import { decodeHtmlEntities, num, str } from "../utils";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -202,13 +203,29 @@ export async function fetchAllSms(
   return { messages, pages, error: lastError, deferred };
 }
 
-export async function getSmsCount(
-  client: HiLinkClient,
-): Promise<SmsCountResponse> {
-  const res = await client.requestAs<{ response: SmsCountResponse }>(
-    "/api/sms/sms-count",
-  );
-  return res.response;
+export async function getSmsCount(client: HiLinkClient): Promise<SmsCount> {
+  const { response: raw } = await client.requestAs<{
+    response: Record<string, string>;
+  }>("/api/sms/sms-count");
+  return {
+    LocalUnread: num(raw.LocalUnread),
+    LocalInbox: num(raw.LocalInbox),
+    LocalOutbox: num(raw.LocalOutbox),
+    LocalDraft: num(raw.LocalDraft),
+    LocalMax: num(raw.LocalMax),
+    SimInbox: num(raw.SimInbox),
+    SimOutbox: num(raw.SimOutbox),
+    SimDraft: num(raw.SimDraft),
+    SimUsed: num(raw.SimUsed),
+    SimMax: num(raw.SimMax),
+  };
+}
+
+export async function getSmsConfig(client: HiLinkClient): Promise<SmsConfig> {
+  const { response: raw } = await client.requestAs<{
+    response: Record<string, string>;
+  }>("/api/sms/config");
+  return { Sca: str(raw.Sca), SaveMode: num(raw.SaveMode) };
 }
 
 export async function setSmsRead(
