@@ -9,6 +9,7 @@ import {
   type NetworkMode,
 } from "@/src/api/routes";
 import { HiLinkError } from "@/src/api/errors";
+import { sleep } from "@/src/api/utils";
 import { HiLinkClient } from "@/src/api/main";
 import { useHiLinkClient } from "@/src/hooks/HiLinkProvider";
 import { STATUS_QUERY_KEY } from "@/src/hooks/useDeviceStatus";
@@ -50,8 +51,6 @@ export function useSetMobileData() {
       ]),
   });
 }
-
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // The MiFi drops off for 40–60 s while it restarts.
 const RESTART_POLL_MS = 3_000;

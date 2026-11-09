@@ -105,3 +105,40 @@ export function SettingsSheet({
     </ScrollView>
   );
 }
+
+export function Segmented<T extends string | number>({
+  options,
+  value,
+  onChange,
+  disabled,
+}: {
+  options: { value: T; label: string }[];
+  value: T | undefined;
+  onChange: (value: T) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <HStack className="gap-1 rounded-full bg-secondary p-1">
+      {options.map((option) => {
+        const selected = option.value === value;
+        return (
+          <Pressable
+            key={String(option.value)}
+            onPress={() => !selected && onChange(option.value)}
+            disabled={disabled}
+            accessibilityRole="radio"
+            accessibilityState={{ selected }}
+            className={`flex-1 items-center rounded-full py-2 ${selected ? "bg-primary" : "data-[active=true]:bg-card"}`}
+          >
+            <Text
+              className={`text-sm font-medium ${selected ? "text-primary-foreground" : "text-foreground"}`}
+              numberOfLines={1}
+            >
+              {option.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </HStack>
+  );
+}

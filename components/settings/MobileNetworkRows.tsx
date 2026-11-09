@@ -1,6 +1,6 @@
 import ConfirmDialog from "@/components/common/ConfirmDialog";
+import { Segmented } from "@/components/settings/SettingsParts";
 import { HStack } from "@/components/ui/hstack";
-import { Pressable } from "@/components/ui/pressable";
 import { Switch } from "@/components/ui/switch";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
@@ -75,27 +75,15 @@ export function NetworkModeRow() {
         </Text>
       </VStack>
       {options.length > 0 && (
-        <HStack className="gap-1 rounded-full bg-secondary p-1">
-          {options.map((mode) => {
-            const selected = mode === data?.mode;
-            return (
-              <Pressable
-                key={mode}
-                onPress={() => !selected && setPending(mode)}
-                disabled={change.isPending}
-                accessibilityRole="radio"
-                accessibilityState={{ selected }}
-                className={`flex-1 items-center rounded-full py-2 ${selected ? "bg-primary" : "data-[active=true]:bg-card"}`}
-              >
-                <Text
-                  className={`text-sm font-medium ${selected ? "text-primary-foreground" : "text-foreground"}`}
-                >
-                  {MODE_LABELS[mode]}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </HStack>
+        <Segmented
+          options={options.map((mode) => ({
+            value: mode,
+            label: MODE_LABELS[mode],
+          }))}
+          value={data?.mode}
+          onChange={setPending}
+          disabled={change.isPending}
+        />
       )}
       {change.error && (
         <Text className="text-xs text-destructive">

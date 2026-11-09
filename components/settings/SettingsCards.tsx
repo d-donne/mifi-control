@@ -6,9 +6,11 @@ import {
   Plane,
   Signal,
   Smartphone,
+  Wifi,
   type LucideIcon,
 } from "@/components/icons";
 import { MODE_LABELS } from "@/components/settings/MobileNetworkRows";
+import { useWifiSummary } from "@/components/settings/WifiRows";
 import { Box } from "@/components/ui/box";
 import { HStack } from "@/components/ui/hstack";
 import { Pressable } from "@/components/ui/pressable";
@@ -18,7 +20,7 @@ import { describePlan } from "@/src/api/utils";
 import { paletteColors, useAppColors } from "@/src/hooks/useAppColors";
 import { useAppUpdate } from "@/src/hooks/useAppUpdate";
 import { useDataPlan } from "@/src/hooks/useDataUsage";
-import { usePlmn } from "@/src/hooks/useDeviceStatus";
+import { usePlmn, useStatus } from "@/src/hooks/useDeviceStatus";
 import {
   useDataRoaming,
   useMobileData,
@@ -170,6 +172,29 @@ export function NetworkCard() {
         />
       </HStack>
     </GroupCard>
+  );
+}
+
+export function WifiCard() {
+  const { data: status } = useStatus();
+  const { main } = useWifiSummary();
+
+  const summary = [
+    main?.name,
+    status
+      ? `${status.CurrentWifiUser} of ${status.TotalWifiUser} devices`
+      : undefined,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  return (
+    <GroupCard
+      icon={Wifi}
+      title="Wi-Fi"
+      summary={summary || undefined}
+      href="/settings/wifi"
+    />
   );
 }
 

@@ -25,6 +25,7 @@ export default function AppLayout() {
         <Stack.Screen name="usage" options={sheet} />
         <Stack.Screen name="settings/device" options={sheet} />
         <Stack.Screen name="settings/network" options={sheet} />
+        <Stack.Screen name="settings/wifi" options={sheet} />
         <Stack.Screen name="settings/appearance" options={sheet} />
         <Stack.Screen name="settings/app" options={sheet} />
       </Stack>

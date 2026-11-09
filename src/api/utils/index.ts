@@ -59,3 +59,6 @@ export function decodeHtmlEntities(text: string): string {
     return NAMED_ENTITIES[ref.toLowerCase()] ?? match;
   });
 }
+
+export const sleep = (ms: number) =>
+  new Promise<void>((resolve) => setTimeout(resolve, ms));

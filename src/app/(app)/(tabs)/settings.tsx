@@ -5,6 +5,7 @@ import {
   AppCard,
   AppearanceCard,
   NetworkCard,
+  WifiCard,
 } from "@/components/settings/SettingsCards";
 import { Box } from "@/components/ui/box";
 import { Button, ButtonText } from "@/components/ui/button";
@@ -66,6 +67,7 @@ export default function Settings() {
           <DeviceCard />
 
           <NetworkCard />
+          <WifiCard />
           <AppearanceCard />
           <AppCard />
 
