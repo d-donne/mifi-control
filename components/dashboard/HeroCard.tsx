@@ -1,5 +1,6 @@
 import { Box } from "@/components/ui/box";
 import { HStack } from "@/components/ui/hstack";
+import { Pressable } from "@/components/ui/pressable";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
 import PulsingDot from "../common/PulsingDot";
@@ -20,6 +21,7 @@ import {
 import { useAppColors, withAlpha } from "@/src/hooks/useAppColors";
 import { usePalette } from "@/src/hooks/usePalette";
 import { PALETTES } from "@/src/theme/palettes";
+import { useRouter } from "expo-router";
 import useSignalConfig from "./SignalConfig";
 import SignalBars from "./SignalBars";
 
@@ -61,6 +63,7 @@ export default function HeroCard() {
   const { data: plmn } = usePlmn();
   // The panel keeps its dark colour in both themes, so its inks come from the dark scheme.
   const colors = useAppColors("dark");
+  const router = useRouter();
   const signal = useSignalConfig(status?.SignalIcon, "dark");
   const barColor = signal.level >= 3 ? colors.accent : signal.color;
 
@@ -92,14 +95,20 @@ export default function HeroCard() {
             {carrier}
           </Text>
         </VStack>
-        <VStack className="items-end gap-2 pb-0.5">
+        <Pressable
+          onPress={() => router.push("/signal")}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel={`Signal ${signal.text}. Shows signal details`}
+          className="items-end gap-2 pb-0.5 data-[active=true]:opacity-70"
+        >
           <SignalBars
             level={signal.level}
             color={barColor}
             emptyColor={withAlpha(colors.heroForeground, 0.18)}
           />
           <Text className="text-sm text-hero-muted">{signal.text}</Text>
-        </VStack>
+        </Pressable>
       </HStack>
 
       <Box className="my-4 h-px bg-hero-muted/25" />

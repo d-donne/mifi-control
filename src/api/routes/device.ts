@@ -1,6 +1,6 @@
 import type { HiLinkClient } from "../main";
-import type { DeviceInfo, DeviceInfoRaw } from "../types";
-import { decodeHtmlEntities, str } from "../utils";
+import type { DeviceInfo, DeviceInfoRaw, DeviceSignal } from "../types";
+import { decodeHtmlEntities, num, str } from "../utils";
 
 export interface DeviceEndpoints {
   information: DeviceInfo;
@@ -35,4 +35,26 @@ export async function reboot(client: HiLinkClient): Promise<void> {
       Control: 1,
     },
   });
+}
+
+// Some firmware caps readings as ">=-44dBm"; take the first number.
+function measure(value: unknown): number | null {
+  const match = /-?\d+(\.\d+)?/.exec(str(value));
+  return match ? Number(match[0]) : null;
+}
+
+export async function getSignal(client: HiLinkClient): Promise<DeviceSignal> {
+  const { response: raw } = await client.requestAs<{
+    response: Record<string, string>;
+  }>("/api/device/signal");
+  return {
+    mode: num(raw.mode, -1),
+    rsrp: measure(raw.rsrp),
+    rsrq: measure(raw.rsrq),
+    sinr: measure(raw.sinr),
+    band: measure(raw.band),
+    dlBandwidth: str(raw.dlbandwidth),
+    cellId: str(raw.cell_id),
+    pci: str(raw.pci),
+  };
 }

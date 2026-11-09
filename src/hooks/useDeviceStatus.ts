@@ -1,4 +1,9 @@
-import { getCurrentPlmn, getDevice, getMonitoring } from "@/src/api/routes";
+import {
+  getCurrentPlmn,
+  getDevice,
+  getMonitoring,
+  getSignal,
+} from "@/src/api/routes";
 import { useHiLinkQuery } from "@/src/hooks/useHiLinkQuery";
 
 export const STATUS_QUERY_KEY = ["status"] as const;
@@ -35,5 +40,13 @@ export function usePlmn() {
     queryKey: PLMN_QUERY_KEY,
     queryFn: getCurrentPlmn,
     refetchInterval: 60_000,
+  });
+}
+
+export function useSignal() {
+  return useHiLinkQuery({
+    queryKey: ["signal"],
+    queryFn: getSignal,
+    refetchInterval: 3_000,
   });
 }

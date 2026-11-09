@@ -29,3 +29,16 @@ export interface DeviceInfo {
  * wire object is the typed shape (see routes/device.ts).
  */
 export type DeviceInfoRaw = Record<string, string>;
+
+/** GET /api/device/signal, numbers parsed from unit strings ("-104dBm"). */
+export interface DeviceSignal {
+  /** 7 = LTE, 2 = WCDMA, 0 = GSM, -1 = not reported. */
+  mode: number;
+  rsrp: number | null;
+  rsrq: number | null;
+  sinr: number | null;
+  band: number | null;
+  dlBandwidth: string;
+  cellId: string;
+  pci: string;
+}
