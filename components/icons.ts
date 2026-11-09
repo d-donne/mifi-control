@@ -28,6 +28,7 @@ export { default as MonitorSmartphone } from "lucide-react-native/icons/monitor-
 export { default as Palette } from "lucide-react-native/icons/palette";
 export { default as Plane } from "lucide-react-native/icons/plane";
 export { default as PlugZap } from "lucide-react-native/icons/plug-zap";
+export { default as Power } from "lucide-react-native/icons/power";
 export { default as RefreshCw } from "lucide-react-native/icons/refresh-cw";
 export { default as Router } from "lucide-react-native/icons/router";
 export { default as Search } from "lucide-react-native/icons/search";

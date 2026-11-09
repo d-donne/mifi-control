@@ -1,6 +1,6 @@
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import { ChevronRight, LogOut, Router } from "@/components/icons";
-import RestartCard from "@/components/settings/RestartCard";
+import PowerCard from "@/components/settings/PowerCard";
 import {
   AppCard,
   AppearanceCard,
@@ -71,7 +71,7 @@ export default function Settings() {
           <AppearanceCard />
           <AppCard />
 
-          <RestartCard />
+          <PowerCard />
 
           <Button
             variant="outline"

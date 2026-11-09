@@ -63,6 +63,14 @@ function sessionClosedError(): HiLinkError {
   return new HiLinkError("Session closed", SESSION_CLOSED_CODE);
 }
 
+export interface LoginGate {
+  reachable: boolean;
+  /** Minutes until sign-in unlocks; null when it isn't locked. */
+  lockedMinutes: number | null;
+}
+
+const UNREACHABLE: LoginGate = { reachable: false, lockedMinutes: null };
+
 export class HiLinkClient {
   private readonly baseUrl: string;
   private readonly referer: string;
@@ -122,19 +130,30 @@ export class HiLinkClient {
   }
 
   /**
-   * Whether a HiLink device answers at `baseUrl`. Uses the unauthenticated
-   * `user/state-login`, so it never spends a login attempt.
+   * Reads the unauthenticated `user/state-login`, so it never spends a login
+   * attempt. While sign-in is locked the device reports the wait in minutes.
    */
-  static async isReachable(baseUrl: string): Promise<boolean> {
+  static async loginGate(baseUrl: string): Promise<LoginGate> {
     try {
       const res = await xhrRequest(
         `${baseUrl.replace(/\/$/, "")}/api/user/state-login`,
         { timeoutMs: 4_000 },
       );
-      return res.ok && /<State>/.test(await res.text());
+      const body = await res.text();
+      if (!res.ok || !/<State>/.test(body)) return UNREACHABLE;
+      const locked = /<lockstatus>1<\/lockstatus>/.test(body);
+      const wait = Number(/<remainwaittime>(\d+)</.exec(body)?.[1] ?? 0);
+      return {
+        reachable: true,
+        lockedMinutes: locked ? Math.max(1, wait) : null,
+      };
     } catch {
-      return false;
+      return UNREACHABLE;
     }
+  }
+
+  static async isReachable(baseUrl: string): Promise<boolean> {
+    return (await HiLinkClient.loginGate(baseUrl)).reachable;
   }
 
   /**

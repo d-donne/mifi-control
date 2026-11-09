@@ -28,6 +28,14 @@ export async function getDevice<K extends keyof DeviceEndpoints>(
   return decoded as DeviceEndpoints[K];
 }
 
+/** `Control: 4`; 2 is a factory reset and must never be sent. */
+export async function powerOff(client: HiLinkClient): Promise<void> {
+  await client.requestAs("/api/device/control", {
+    method: "POST",
+    bodyObj: { Control: 4 },
+  });
+}
+
 export async function reboot(client: HiLinkClient): Promise<void> {
   await client.requestAs("/api/device/control", {
     method: "POST",

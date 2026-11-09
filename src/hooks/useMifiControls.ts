@@ -2,6 +2,7 @@ import {
   getDataRoaming,
   getMobileData,
   getNetworkMode,
+  powerOff,
   reboot,
   setDataRoaming,
   setMobileData,
@@ -134,6 +135,20 @@ export function useRestart() {
     failed: stage === "failed",
     start,
   };
+}
+
+export function usePowerOff() {
+  const client = useHiLinkClient();
+  return useMutation({
+    mutationFn: async () => {
+      try {
+        await powerOff(client);
+      } catch (error) {
+        // The MiFi often switches off before it answers; only its own refusal is a failure.
+        if (error instanceof HiLinkError) throw error;
+      }
+    },
+  });
 }
 
 export function useDataRoaming() {

@@ -144,12 +144,18 @@ export default function SignInScreen() {
   const probeUrl = baseUrl.trim();
   const probe = useQuery({
     queryKey: ["probe", probeUrl],
-    queryFn: () => HiLinkClient.isReachable(probeUrl),
+    queryFn: () => HiLinkClient.loginGate(probeUrl),
     enabled: !busy && VALID_URL.test(probeUrl),
-    refetchInterval: (query) => (query.state.data ? false : 3_000),
+    // The web UI re-checks a lockout every 6 s.
+    refetchInterval: (query) => {
+      const gate = query.state.data;
+      if (gate?.lockedMinutes || error?.kind === "blocked") return 6_000;
+      return gate?.reachable ? false : 3_000;
+    },
     retry: false,
   });
-  const reachable = probe.data;
+  const reachable = probe.data?.reachable;
+  const lockedMinutes = probe.data?.lockedMinutes ?? null;
 
   // Only credentials that already worked are retried automatically: an
   // unverified password would spend one of the device's login attempts.
@@ -193,10 +199,13 @@ export default function SignInScreen() {
   const passwordError =
     errorFor("password") ??
     (!fieldError && error?.kind === "credentials" ? error.message : null);
-  const banner =
-    error &&
-    error.kind !== "credentials" &&
-    !(error.kind === "network" && reachable === false)
+  const banner = lockedMinutes
+    ? {
+        message: `Sign-in is locked after too many attempts. Try again in about ${lockedMinutes} ${lockedMinutes === 1 ? "minute" : "minutes"}.`,
+      }
+    : error &&
+        error.kind !== "credentials" &&
+        !(error.kind === "network" && reachable === false)
       ? error
       : null;
 
@@ -354,10 +363,16 @@ export default function SignInScreen() {
                 size="lg"
                 className="rounded-full"
                 onPress={submit}
-                isDisabled={busy}
+                isDisabled={busy || lockedMinutes !== null}
               >
                 {busy && <ButtonSpinner color={colors.primaryForeground} />}
-                <ButtonText>{busy ? "Signing in…" : "Sign in"}</ButtonText>
+                <ButtonText>
+                  {busy
+                    ? "Signing in…"
+                    : lockedMinutes
+                      ? "Locked for now"
+                      : "Sign in"}
+                </ButtonText>
               </Button>
             </VStack>
           </VStack>
