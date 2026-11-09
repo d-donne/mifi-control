@@ -169,3 +169,10 @@ export async function setDataPlan(
     },
   });
 }
+
+export async function clearTraffic(client: HiLinkClient): Promise<void> {
+  await client.requestAs("/api/monitoring/clear-traffic", {
+    method: "POST",
+    bodyObj: { ClearTraffic: 1 },
+  });
+}

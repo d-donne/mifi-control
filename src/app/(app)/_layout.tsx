@@ -22,6 +22,7 @@ export default function AppLayout() {
         <Stack.Screen name="device/[mac]" options={sheet} />
         <Stack.Screen name="sms-settings" options={sheet} />
         <Stack.Screen name="signal" options={sheet} />
+        <Stack.Screen name="usage" options={sheet} />
       </Stack>
     </HiLinkProvider>
   );

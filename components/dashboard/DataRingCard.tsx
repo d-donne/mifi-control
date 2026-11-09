@@ -41,12 +41,12 @@ export default function DataRingCard() {
 
   return (
     <Pressable
-      onPress={() => router.push("/data-plan")}
+      onPress={() => router.push("/usage")}
       accessibilityRole="button"
       accessibilityLabel={
         month
-          ? `Data this month ${formatBytes(used)}: ${formatBytes(down)} down, ${formatBytes(up)} up. Edit data plan`
-          : "Data this month. Edit data plan"
+          ? `Data this month ${formatBytes(used)}: ${formatBytes(down)} down, ${formatBytes(up)} up. Shows usage details`
+          : "Data this month. Shows usage details"
       }
       className="flex-1 data-[active=true]:opacity-80"
     >
